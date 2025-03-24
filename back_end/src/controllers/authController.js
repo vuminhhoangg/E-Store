@@ -1,10 +1,7 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const asyncHandler = require('express-async-handler');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import asyncHandler from 'express-async-handler';
 
-// @desc    Authenticate user & get token
-// @route   POST /api/auth/login
-// @access  Public
 const authUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
@@ -24,9 +21,6 @@ const authUser = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
 
@@ -64,7 +58,4 @@ const generateToken = (id) => {
     });
 };
 
-module.exports = {
-    authUser,
-    registerUser,
-};
+export { registerUser, authUser };

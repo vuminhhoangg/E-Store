@@ -1,9 +1,6 @@
-const Product = require('../models/Product');
-const asyncHandler = require('express-async-handler');
+import Product from '../models/Product.js';
+import asyncHandler from 'express-async-handler';
 
-// @desc    Fetch all products
-// @route   GET /api/products
-// @access  Public
 const getProducts = asyncHandler(async (req, res) => {
     const pageSize = 10;
     const page = Number(req.query.pageNumber) || 1;
@@ -25,9 +22,6 @@ const getProducts = asyncHandler(async (req, res) => {
     res.json({ products, page, pages: Math.ceil(count / pageSize) });
 });
 
-// @desc    Fetch single product
-// @route   GET /api/products/:id
-// @access  Public
 const getProductById = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id);
 
@@ -107,7 +101,7 @@ const updateProduct = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = {
+export {
     getProducts,
     getProductById,
     deleteProduct,

@@ -1,8 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const { authUser, registerUser } = require('../controllers/authController');
+import express from 'express';
+import { authUser, registerUser } from '../controllers/authController.js';
 
+const router = express.Router();
 router.post('/login', authUser);
 router.post('/register', registerUser);
 
-module.exports = router;
+router.get('/test', (req, res) => {
+    res.status(200).json({ message: 'Hello from test API!' });
+});
+
+export default router;
