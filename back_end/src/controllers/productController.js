@@ -16,9 +16,9 @@ export const createProduct = async (req, res) => {
         });
 
         const createdProduct = await product.save();
-        return res.status(httpStatus.CREATED).json(createdProduct);
+        return res.status(httpStatus.CREATED).json({ data: createdProduct, message: 'Product created successfully' });
     } catch (error) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
     }
 }
 
@@ -38,21 +38,31 @@ export const updateProduct = async (req, res) => {
             product.countInStock = countInStock;
 
             const updatedProduct = await product.save();
-            return res.status(httpStatus.OK).json(updatedProduct);
+            return res.status(httpStatus.OK).json({ data: updatedProduct, message: 'Product updated successfully' });
         } else {
-            return res.status(httpStatus.NOT_FOUND).json({ message: 'Product not found' });
+            return res.status(httpStatus.NOT_FOUND).json({ data: null, message: 'Product not found' });
         }
     } catch (error) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
     }
 }
 
 export const getProductList = async (req, res) => {
     try {
-        const products = await Product.find({});
-        return res.status(httpStatus.OK).json(products);
+        const pageSize = Number(req.query.pageSize) || 10;
+        const page = Number(req.query.pageNumber) || 1;
+
+        const count = await Product.countDocuments({});
+        const products = await Product.find({})
+            .limit(pageSize)
+            .skip(pageSize * (page - 1));
+
+        return res.status(httpStatus.OK).json({
+            data: { products, page, pages: Math.ceil(count / pageSize) },
+            message: 'Product list retrieved successfully'
+        });
     } catch (error) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
     }
 }
 
@@ -61,11 +71,11 @@ export const getProductById = async (req, res) => {
         const product = await Product.findById(req.params.id);
 
         if (product) {
-            return res.status(httpStatus.OK).json(product);
+            return res.status(httpStatus.OK).json({ data: product, message: 'Product retrieved successfully' });
         } else {
-            return res.status(httpStatus.NOT_FOUND).json({ message: 'Product not found' });
+            return res.status(httpStatus.NOT_FOUND).json({ data: null, message: 'Product not found' });
         }
     } catch (error) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
     }
 }
