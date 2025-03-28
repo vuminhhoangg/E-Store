@@ -7,7 +7,7 @@ import {
     createProduct,
     updateProduct,
 } from '../controllers/productController.js';
-import { protect, admin } from '../middlewares/authMiddleware.js';
+import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 router.route('/').get(getProducts).post(protect, admin, createProduct);

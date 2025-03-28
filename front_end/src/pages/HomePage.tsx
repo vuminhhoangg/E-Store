@@ -1,0 +1,614 @@
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+
+const HomePage = () => {
+    const [products, setProducts] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [categories] = useState([
+        { id: 'all', name: 'Tất cả' },
+        { id: 'smartphones', name: 'Điện thoại' },
+        { id: 'laptops', name: 'Laptop' },
+        { id: 'tablets', name: 'Máy tính bảng' },
+        { id: 'watches', name: 'Đồng hồ' },
+        { id: 'accessories', name: 'Phụ kiện' },
+    ])
+    const [activeCategory, setActiveCategory] = useState('all')
+
+    // Banner state
+    const [currentBanner, setCurrentBanner] = useState(0)
+    const [currentTechNews, setCurrentTechNews] = useState(0)
+    const banners = [
+        {
+            title: 'Công nghệ mới nhất với giá tốt nhất',
+            description: 'Khám phá các sản phẩm công nghệ hàng đầu với giá cả cạnh tranh và dịch vụ chăm sóc khách hàng tuyệt vời.',
+            image: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&q=80&w=600',
+            primary: {
+                text: 'Mua ngay',
+                link: '/products'
+            },
+            secondary: {
+                text: 'Khuyến mãi',
+                link: '/sale'
+            },
+            gradient: 'from-blue-600 to-indigo-700'
+        },
+        {
+            title: 'Khuyến mãi đặc biệt tháng 11',
+            description: 'Giảm giá lên đến 50% cho các sản phẩm công nghệ cao cấp. Chỉ áp dụng trong thời gian giới hạn!',
+            image: 'https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?auto=format&fit=crop&q=80&w=600',
+            primary: {
+                text: 'Xem ưu đãi',
+                link: '/sale'
+            },
+            secondary: {
+                text: 'Tìm hiểu thêm',
+                link: '/about'
+            },
+            gradient: 'from-purple-600 to-pink-600'
+        },
+        {
+            title: 'Thiết bị mới ra mắt',
+            description: 'Trải nghiệm những công nghệ mới nhất với các thiết bị vừa được ra mắt. Đặt hàng ngay hôm nay!',
+            image: 'https://images.unsplash.com/photo-1603351154351-5e2d0600ff5a?auto=format&fit=crop&q=80&w=600',
+            primary: {
+                text: 'Đặt trước',
+                link: '/pre-order'
+            },
+            secondary: {
+                text: 'Chi tiết',
+                link: '/new-releases'
+            },
+            gradient: 'from-green-600 to-teal-600'
+        },
+        {
+            title: 'Phụ kiện thông minh cho ngôi nhà của bạn',
+            description: 'Biến ngôi nhà của bạn thành không gian sống thông minh với các thiết bị kết nối và điều khiển bằng giọng nói.',
+            image: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&q=80&w=600',
+            primary: {
+                text: 'Khám phá',
+                link: '/smart-home'
+            },
+            secondary: {
+                text: 'Tìm hiểu thêm',
+                link: '/guides'
+            },
+            gradient: 'from-cyan-500 to-blue-500'
+        },
+        {
+            title: 'Trải nghiệm gaming đỉnh cao',
+            description: 'Nâng cấp thiết bị gaming của bạn với các sản phẩm chuyên dụng, đem lại trải nghiệm chơi game tốt nhất.',
+            image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600',
+            primary: {
+                text: 'Mua ngay',
+                link: '/gaming'
+            },
+            secondary: {
+                text: 'Xem bộ sưu tập',
+                link: '/collections/gaming'
+            },
+            gradient: 'from-red-500 to-orange-500'
+        }
+    ]
+
+    // News articles for tech section
+    const techNews = [
+        {
+            id: 1,
+            title: 'Apple ra mắt iPhone 16 với công nghệ AI tiên tiến',
+            summary: 'Dòng iPhone mới nhất của Apple tích hợp các tính năng AI tiên tiến, mang đến trải nghiệm người dùng hoàn toàn mới.',
+            image: 'https://images.unsplash.com/photo-1592750475338-74b7b21d0646?auto=format&fit=crop&q=80&w=600',
+            date: '05/11/2023',
+            url: '/news/1'
+        },
+        {
+            id: 2,
+            title: 'Samsung phát triển màn hình gập ba đầu tiên trên thế giới',
+            summary: 'Samsung vừa công bố thành công trong việc phát triển màn hình có thể gập ba, mở ra kỷ nguyên mới cho điện thoại thông minh.',
+            image: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&q=80&w=600',
+            date: '28/10/2023',
+            url: '/news/2'
+        },
+        {
+            id: 3,
+            title: 'Tương lai của công nghệ VR: Từ giải trí đến giáo dục',
+            summary: 'Công nghệ thực tế ảo đang mở rộng phạm vi ứng dụng từ giải trí sang các lĩnh vực giáo dục, y tế và đào tạo chuyên nghiệp.',
+            image: 'https://images.unsplash.com/photo-1626379953822-baec19c3accd?auto=format&fit=crop&q=80&w=600',
+            date: '20/10/2023',
+            url: '/news/3'
+        }
+    ]
+
+    // Next banner function
+    const nextBanner = () => {
+        setCurrentBanner((prev) => (prev === banners.length - 1 ? 0 : prev + 1))
+    }
+
+    // Previous banner function
+    const prevBanner = () => {
+        setCurrentBanner((prev) => (prev === 0 ? banners.length - 1 : prev - 1))
+    }
+
+    // Thêm hàm điều hướng cho TechNews
+    const nextTechNews = () => {
+        setCurrentTechNews((prev) => (prev === techNews.length - 1 ? 0 : prev + 1))
+    }
+
+    // Thêm hàm điều hướng cho TechNews
+    const prevTechNews = () => {
+        setCurrentTechNews((prev) => (prev === 0 ? techNews.length - 1 : prev - 1))
+    }
+
+    // Auto slide banners
+    useEffect(() => {
+        const timer = setInterval(() => {
+            nextBanner()
+        }, 8000)
+        return () => clearInterval(timer)
+    }, [])
+
+    useEffect(() => {
+        // Mô phỏng API call
+        const fetchProducts = async () => {
+            try {
+                // Trong dự án thực, thay thế bằng API call thật
+                setTimeout(() => {
+                    const mockProducts = [
+                        {
+                            id: 1,
+                            name: 'iPhone 14 Pro Max',
+                            price: 28990000,
+                            oldPrice: 32990000,
+                            image: 'https://images.unsplash.com/photo-1664478546384-d57e49c96b8e?auto=format&fit=crop&q=80&w=400',
+                            category: 'smartphones',
+                            rating: 4.8,
+                            discount: 12,
+                            sold: 120,
+                        },
+                        {
+                            id: 2,
+                            name: 'Samsung Galaxy S23 Ultra',
+                            price: 24990000,
+                            oldPrice: 31990000,
+                            image: 'https://images.unsplash.com/photo-1675785931264-f56d09dae24b?auto=format&fit=crop&q=80&w=400',
+                            category: 'smartphones',
+                            rating: 4.7,
+                            discount: 22,
+                            sold: 98,
+                        },
+                        {
+                            id: 3,
+                            name: 'MacBook Pro M2',
+                            price: 35990000,
+                            oldPrice: 39990000,
+                            image: 'https://images.unsplash.com/photo-1569770218135-bea267ed7e84?auto=format&fit=crop&q=80&w=400',
+                            category: 'laptops',
+                            rating: 4.9,
+                            discount: 10,
+                            sold: 75,
+                        },
+                        {
+                            id: 4,
+                            name: 'Dell XPS 13',
+                            price: 28990000,
+                            oldPrice: 30990000,
+                            image: 'https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?auto=format&fit=crop&q=80&w=400',
+                            category: 'laptops',
+                            rating: 4.5,
+                            discount: 7,
+                            sold: 62,
+                        },
+                        {
+                            id: 5,
+                            name: 'iPad Pro M2',
+                            price: 22990000,
+                            oldPrice: 25990000,
+                            image: 'https://images.unsplash.com/photo-1557825835-70d97c4aa567?auto=format&fit=crop&q=80&w=400',
+                            category: 'tablets',
+                            rating: 4.8,
+                            discount: 12,
+                            sold: 88,
+                        },
+                        {
+                            id: 6,
+                            name: 'Apple Watch Series 8',
+                            price: 10990000,
+                            oldPrice: 11990000,
+                            image: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=400',
+                            category: 'watches',
+                            rating: 4.6,
+                            discount: 8,
+                            sold: 110,
+                        },
+                        {
+                            id: 7,
+                            name: 'AirPods Pro',
+                            price: 5990000,
+                            oldPrice: 6990000,
+                            image: 'https://images.unsplash.com/photo-1603351154351-5e2d0600ff5a?auto=format&fit=crop&q=80&w=400',
+                            category: 'accessories',
+                            rating: 4.7,
+                            discount: 14,
+                            sold: 230,
+                        },
+                        {
+                            id: 8,
+                            name: 'Samsung Galaxy Tab S9 Ultra',
+                            price: 18990000,
+                            oldPrice: 21990000,
+                            image: 'https://images.unsplash.com/photo-1589739900266-43b2843f4c12?auto=format&fit=crop&q=80&w=400',
+                            category: 'tablets',
+                            rating: 4.6,
+                            discount: 14,
+                            sold: 56,
+                        },
+                    ]
+                    setProducts(mockProducts)
+                    setLoading(false)
+                }, 1000)
+            } catch (error) {
+                console.error('Error fetching products:', error)
+                setLoading(false)
+            }
+        }
+
+        fetchProducts()
+    }, [])
+
+    const filteredProducts = activeCategory === 'all'
+        ? products
+        : products.filter(product => product.category === activeCategory)
+
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
+    }
+
+    return (
+        <div className="min-h-screen">
+            {/* Hero Banner Slider */}
+            <div className={`relative bg-gradient-to-r ${banners[currentBanner].gradient} text-white py-16 pb-20 overflow-hidden`}>
+                {/* Background decorative elements with animation */}
+                <div className="absolute inset-0 opacity-20">
+                    <div className="absolute -top-24 -right-24 w-96 h-96 bg-white rounded-full opacity-10 animate-pulse"></div>
+                    <div className="absolute top-1/2 -left-24 w-64 h-64 bg-white rounded-full opacity-10 animate-pulse" style={{ animationDelay: '1s' }}></div>
+                    <div className="absolute -bottom-24 right-1/3 w-80 h-80 bg-white rounded-full opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+                </div>
+
+                <div className="container mx-auto px-4 relative z-10">
+                    <div className="flex flex-col md:flex-row items-center">
+                        <div className="md:w-1/2 mb-10 md:mb-0">
+                            <div className="animate-fade-in" key={currentBanner}>
+                                <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4 drop-shadow-lg">
+                                    {banners[currentBanner].title}
+                                </h1>
+                                <p className="text-xl mb-8 text-white/90 drop-shadow-md">
+                                    {banners[currentBanner].description}
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <Link
+                                        to={banners[currentBanner].primary.link}
+                                        className="bg-gradient-to-r from-white to-white/90 text-blue-700 py-3 px-6 md:py-4 md:px-8 rounded-xl font-bold flex items-center justify-center transition-all duration-300 shadow-xl hover:shadow-2xl hover:-translate-y-1 text-lg border-2 border-white relative overflow-hidden group z-10"
+                                    >
+                                        <span className="absolute inset-0 bg-gradient-to-r from-blue-100 to-blue-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                                        <span className="relative z-10 flex items-center">
+                                            {banners[currentBanner].primary.text}
+                                            <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                                            </svg>
+                                        </span>
+                                    </Link>
+                                    <Link
+                                        to={banners[currentBanner].secondary.link}
+                                        className="bg-black/30 hover:bg-black/40 text-white py-3 px-6 md:py-4 md:px-8 rounded-xl font-bold flex items-center justify-center transition-all duration-300 shadow-xl hover:shadow-2xl hover:-translate-y-1 backdrop-blur-sm border-2 border-white/50 text-lg relative overflow-hidden group z-10"
+                                    >
+                                        <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                                        <span className="relative z-10">{banners[currentBanner].secondary.text}</span>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="md:w-1/2">
+                            <div className="relative overflow-hidden rounded-xl shadow-2xl border-4 border-white/30 transition-all duration-500" key={currentBanner}>
+                                <img
+                                    src={banners[currentBanner].image}
+                                    alt="Banner image"
+                                    className="w-full object-cover transition-transform hover:scale-105 duration-700"
+                                    style={{ height: '350px' }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/50"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Improved Navigation Arrows */}
+                <button
+                    onClick={prevBanner}
+                    className="absolute left-4 md:left-10 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-2 md:p-3 backdrop-blur-sm transition-all hover:scale-105 shadow-md focus:outline-none cursor-pointer border border-white/20 z-20 group"
+                    aria-label="Previous banner"
+                >
+                    <svg className="w-5 h-5 md:w-6 md:h-6 group-hover:-translate-x-0.5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <button
+                    onClick={nextBanner}
+                    className="absolute right-4 md:right-10 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-2 md:p-3 backdrop-blur-sm transition-all hover:scale-105 shadow-md focus:outline-none cursor-pointer border border-white/20 z-20 group"
+                    aria-label="Next banner"
+                >
+                    <svg className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-0.5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+
+                {/* Banner number indicator */}
+                <div className="flex justify-center items-center space-x-3 absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/30 backdrop-blur-sm py-2 px-4 rounded-full z-20 border border-white/20">
+                    {banners.map((_, index) => (
+                        <button
+                            key={index}
+                            onClick={() => setCurrentBanner(index)}
+                            className={`transition-all duration-300 flex items-center ${currentBanner === index
+                                ? 'scale-100'
+                                : 'scale-75 opacity-70 hover:opacity-100'
+                                }`}
+                            aria-label={`Chuyển đến banner ${index + 1}`}
+                        >
+                            <span className={`w-2.5 h-2.5 rounded-full ${currentBanner === index
+                                ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]'
+                                : 'bg-white/60 hover:bg-white/80'
+                                }`}></span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Decorative wave */}
+                <div className="absolute -bottom-1 left-0 right-0 overflow-hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" className="w-full block">
+                        <path fill="#fff" fillOpacity="1" d="M0,128L48,138.7C96,149,192,171,288,165.3C384,160,480,128,576,128C672,128,768,160,864,165.3C960,171,1056,149,1152,133.3C1248,117,1344,107,1392,101.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+                    </svg>
+                </div>
+            </div>
+
+            {/* Category Filter */}
+            <div className="container mx-auto px-4 py-10 -mt-1">
+                <div className="flex flex-wrap justify-center gap-3 mb-10">
+                    {categories.map((category) => (
+                        <button
+                            key={category.id}
+                            onClick={() => setActiveCategory(category.id)}
+                            className={`px-5 py-2.5 rounded-full transition-all duration-300 ${activeCategory === category.id
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                        >
+                            {category.name}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Products */}
+                <div className="mb-16">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Sản phẩm nổi bật</h2>
+                        <Link to="/products" className="text-blue-600 hover:text-blue-800 font-medium flex items-center">
+                            Xem tất cả
+                            <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </Link>
+                    </div>
+
+                    {loading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {[...Array(4)].map((_, index) => (
+                                <div key={index} className="animate-pulse bg-white rounded-lg shadow-md overflow-hidden">
+                                    <div className="bg-gray-300 w-full h-52"></div>
+                                    <div className="p-4">
+                                        <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                                        <div className="h-4 bg-gray-300 rounded w-1/2 mb-4"></div>
+                                        <div className="h-6 bg-gray-300 rounded w-1/3 mb-2"></div>
+                                        <div className="h-4 bg-gray-300 rounded w-full mt-4"></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <>
+                            {filteredProducts.length === 0 ? (
+                                <div className="text-center py-10">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <p className="text-gray-500 text-xl mt-4">Không tìm thấy sản phẩm nào</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {filteredProducts.map((product) => (
+                                        <div
+                                            key={product.id}
+                                            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300"
+                                        >
+                                            <div className="relative overflow-hidden">
+                                                <Link to={`/product/${product.id}`}>
+                                                    <img
+                                                        src={product.image}
+                                                        alt={product.name}
+                                                        className="w-full h-52 object-cover transform hover:scale-105 transition-transform duration-300"
+                                                    />
+                                                </Link>
+
+                                                {product.discount > 0 && (
+                                                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold py-1 px-2 rounded">
+                                                        -{product.discount}%
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="p-4">
+                                                <Link to={`/product/${product.id}`}>
+                                                    <h3 className="text-lg font-medium text-gray-800 hover:text-blue-600 transition-colors mb-2">
+                                                        {product.name}
+                                                    </h3>
+                                                </Link>
+
+                                                <div className="flex items-center mb-2">
+                                                    <div className="flex text-yellow-400">
+                                                        {[...Array(5)].map((_, i) => (
+                                                            <svg
+                                                                key={i}
+                                                                className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'text-yellow-400' : 'text-gray-300'}`}
+                                                                fill="currentColor"
+                                                                viewBox="0 0 20 20"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                            >
+                                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                            </svg>
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-xs text-gray-500 ml-1">({product.sold} đã bán)</span>
+                                                </div>
+
+                                                <div className="flex items-center mt-2">
+                                                    <span className="text-lg font-bold text-gray-800">
+                                                        {formatPrice(product.price)}
+                                                    </span>
+                                                    {product.oldPrice && (
+                                                        <span className="ml-2 text-sm text-gray-500 line-through">
+                                                            {formatPrice(product.oldPrice)}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <button className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center">
+                                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                                    </svg>
+                                                    Thêm vào giỏ
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                {/* Tech News Section (replacing Banner) */}
+                <div className="mb-16">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Tin tức công nghệ</h2>
+                        <Link to="/news" className="text-blue-600 hover:text-blue-800 font-medium flex items-center">
+                            Xem tất cả
+                            <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {techNews.map((article) => (
+                            <div key={article.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                                <Link to={article.url}>
+                                    <img
+                                        src={article.image}
+                                        alt={article.title}
+                                        className="w-full h-48 object-cover"
+                                    />
+                                </Link>
+                                <div className="p-6">
+                                    <div className="text-xs text-gray-500 mb-2">{article.date}</div>
+                                    <Link to={article.url}>
+                                        <h3 className="text-xl font-bold text-gray-800 mb-3 hover:text-blue-600 transition-colors">{article.title}</h3>
+                                    </Link>
+                                    <p className="text-gray-600 mb-4">{article.summary}</p>
+                                    <Link
+                                        to={article.url}
+                                        className="text-blue-600 hover:text-blue-800 font-medium inline-flex items-center"
+                                    >
+                                        Đọc tiếp
+                                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                                        </svg>
+                                    </Link>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Why Choose Us */}
+                <div className="mb-16">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-12">Tại sao chọn E-Store?</h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="text-center px-6">
+                            <div className="bg-blue-100 w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-semibold mb-3">Giao hàng nhanh chóng</h3>
+                            <p className="text-gray-600">Giao hàng trong ngày đối với các đơn tại thành phố lớn và 2-3 ngày với các tỉnh thành khác.</p>
+                        </div>
+
+                        <div className="text-center px-6">
+                            <div className="bg-green-100 w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-semibold mb-3">Bảo hành chính hãng</h3>
+                            <p className="text-gray-600">Tất cả sản phẩm đều được bảo hành chính hãng 12 tháng và hỗ trợ đổi mới trong 30 ngày.</p>
+                        </div>
+
+                        <div className="text-center px-6">
+                            <div className="bg-red-100 w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-semibold mb-3">Hỗ trợ 24/7</h3>
+                            <p className="text-gray-600">Đội ngũ chăm sóc khách hàng luôn sẵn sàng hỗ trợ bạn mọi lúc, mọi nơi qua hotline và live chat.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Brands */}
+                <div className="mb-16">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-8">Thương hiệu nổi bật</h2>
+
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                        {['Apple', 'Samsung', 'Sony', 'Dell', 'HP', 'Asus'].map((brand, index) => (
+                            <div key={index} className="bg-white rounded-lg shadow-sm p-6 flex items-center justify-center border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+                                <div className="text-xl font-bold text-gray-600">{brand}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Newsletter */}
+                <div className="bg-gray-100 rounded-xl p-8 md:p-12 mb-16">
+                    <div className="max-w-3xl mx-auto text-center">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Đăng ký nhận tin</h2>
+                        <p className="text-gray-600 mb-8">Nhận thông tin về sản phẩm mới và chương trình khuyến mãi đặc biệt từ E-Store.</p>
+
+                        <div className="flex flex-col sm:flex-row max-w-md mx-auto">
+                            <input
+                                type="email"
+                                placeholder="Nhập email của bạn"
+                                className="flex-grow px-4 py-3 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 border-y border-l border-gray-300 shadow-sm text-gray-900 sm:mb-0 mb-2 sm:rounded-l-md rounded-md"
+                            />
+                            <button
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-r-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors sm:rounded-r-md rounded-md"
+                            >
+                                Đăng ký
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+export default HomePage 
