@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import BaseModel from "./base.js";
 
 const orderSchema = new mongoose.Schema({
     user: {
@@ -75,4 +76,7 @@ const orderSchema = new mongoose.Schema({
     timestamps: true,
 });
 
-export default mongoose.model('Order', orderSchema);
+
+const baseModel = new BaseModel(orderSchema);
+
+export default baseModel.createModel("Order");

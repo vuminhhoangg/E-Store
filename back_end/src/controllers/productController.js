@@ -1,110 +1,81 @@
 import Product from '../models/Product.js';
-import asyncHandler from 'express-async-handler';
+import httpStatus from 'http-status';
 
-const getProducts = asyncHandler(async (req, res) => {
-    const pageSize = 10;
-    const page = Number(req.query.pageNumber) || 1;
+export const createProduct = async (req, res) => {
+    try {
+        const { name, image, brand, category, description, price, countInStock } = req.body;
 
-    const keyword = req.query.keyword
-        ? {
-            name: {
-                $regex: req.query.keyword,
-                $options: 'i',
-            },
+        const product = new Product({
+            name,
+            image,
+            brand,
+            category,
+            description,
+            price,
+            countInStock
+        });
+
+        const createdProduct = await product.save();
+        return res.status(httpStatus.CREATED).json({ data: createdProduct, message: 'Product created successfully' });
+    } catch (error) {
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
+    }
+}
+
+export const updateProduct = async (req, res) => {
+    try {
+        const { name, image, brand, category, description, price, countInStock } = req.body;
+
+        const product = await Product.findById(req.params.id);
+
+        if (product) {
+            product.name = name;
+            product.image = image;
+            product.brand = brand;
+            product.category = category;
+            product.description = description;
+            product.price = price;
+            product.countInStock = countInStock;
+
+            const updatedProduct = await product.save();
+            return res.status(httpStatus.OK).json({ data: updatedProduct, message: 'Product updated successfully' });
+        } else {
+            return res.status(httpStatus.NOT_FOUND).json({ data: null, message: 'Product not found' });
         }
-        : {};
-
-    const count = await Product.countDocuments({ ...keyword });
-    const products = await Product.find({ ...keyword })
-        .limit(pageSize)
-        .skip(pageSize * (page - 1));
-
-    res.json({ products, page, pages: Math.ceil(count / pageSize) });
-});
-
-const getProductById = asyncHandler(async (req, res) => {
-    const product = await Product.findById(req.params.id);
-
-    if (product) {
-        res.json(product);
-    } else {
-        res.status(404);
-        throw new Error('Product not found');
+    } catch (error) {
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
     }
-});
+}
 
-// @desc    Delete a product
-// @route   DELETE /api/products/:id
-// @access  Private/Admin
-const deleteProduct = asyncHandler(async (req, res) => {
-    const product = await Product.findById(req.params.id);
+export const getProductList = async (req, res) => {
+    try {
+        const pageSize = Number(req.query.pageSize) || 10;
+        const page = Number(req.query.pageNumber) || 1;
 
-    if (product) {
-        await Product.deleteOne({ _id: req.params.id });
-        res.json({ message: 'Product removed' });
-    } else {
-        res.status(404);
-        throw new Error('Product not found');
+        const count = await Product.countDocuments({});
+        const products = await Product.find({})
+            .limit(pageSize)
+            .skip(pageSize * (page - 1));
+
+        return res.status(httpStatus.OK).json({
+            data: { products, page, pages: Math.ceil(count / pageSize) },
+            message: 'Product list retrieved successfully'
+        });
+    } catch (error) {
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
     }
-});
+}
 
-// @desc    Create a product
-// @route   POST /api/products
-// @access  Private/Admin
-const createProduct = asyncHandler(async (req, res) => {
-    const product = new Product({
-        name: 'Sample name',
-        price: 0,
-        user: req.user._id,
-        image: '/images/sample.jpg',
-        brand: 'Sample brand',
-        category: 'Sample category',
-        countInStock: 0,
-        numReviews: 0,
-        description: 'Sample description',
-    });
+export const getProductById = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
 
-    const createdProduct = await product.save();
-    res.status(201).json(createdProduct);
-});
-
-// @desc    Update a product
-// @route   PUT /api/products/:id
-// @access  Private/Admin
-const updateProduct = asyncHandler(async (req, res) => {
-    const {
-        name,
-        price,
-        description,
-        image,
-        brand,
-        category,
-        countInStock,
-    } = req.body;
-
-    const product = await Product.findById(req.params.id);
-
-    if (product) {
-        product.name = name;
-        product.price = price;
-        product.description = description;
-        product.image = image;
-        product.brand = brand;
-        product.category = category;
-        product.countInStock = countInStock;
-
-        const updatedProduct = await product.save();
-        res.json(updatedProduct);
-    } else {
-        res.status(404);
-        throw new Error('Product not found');
+        if (product) {
+            return res.status(httpStatus.OK).json({ data: product, message: 'Product retrieved successfully' });
+        } else {
+            return res.status(httpStatus.NOT_FOUND).json({ data: null, message: 'Product not found' });
+        }
+    } catch (error) {
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ data: null, message: error.message });
     }
-});
-
-export {
-    getProducts,
-    getProductById,
-    deleteProduct,
-    createProduct,
-    updateProduct,
-};
+}

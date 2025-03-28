@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import BaseModel from "./base.js";
+
 
 const userSchema = new mongoose.Schema({
     userName: {
@@ -125,4 +127,6 @@ userSchema.methods.updateDevice = function (userAgent, ipAddress) {
     return this.save();
 };
 
-export default mongoose.model('User', userSchema);
+const baseModel = new BaseModel(userSchema);
+
+export default baseModel.createModel("User");
