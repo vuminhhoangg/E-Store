@@ -7,6 +7,7 @@ interface User {
     userName: string;
     phoneNumber: string;
     diaChi: string;
+    isAdmin: boolean;
 }
 
 interface UserInfo {
@@ -18,7 +19,10 @@ interface UserInfo {
 
 interface AuthContextType {
     isLoggedIn: boolean;
+    isAuthenticated: boolean;
     user: User | null;
+    adminVerified: boolean;
+    verifyAdminOnce: () => Promise<boolean>;
     login: (phoneNumber: string, password: string, rememberMe?: boolean) => Promise<void>;
     logout: () => void;
     refreshSession: () => void;
@@ -44,26 +48,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [user, setUser] = useState<User | null>(null);
     const [lastActivity, setLastActivity] = useState<number>(Date.now());
     const [refreshRetries, setRefreshRetries] = useState(0);
+    const [adminVerified, setAdminVerified] = useState(false);
 
     // Hàm lấy thông tin người dùng từ storage
     const getUserInfoFromStorage = (): UserInfo | null => {
         try {
             // Kiểm tra cả localStorage và sessionStorage
             const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-            if (!userInfoStr) return null;
+            if (!userInfoStr) {
+                console.log('[AuthContext] getUserInfoFromStorage: No user info found in storage');
+                return null;
+            }
 
             const userInfo = JSON.parse(userInfoStr) as UserInfo;
+            console.log('[AuthContext] getUserInfoFromStorage: User data loaded from storage:', {
+                userId: userInfo.user?.id,
+                userName: userInfo.user?.userName,
+                isAdmin: userInfo.user?.isAdmin !== undefined ? userInfo.user.isAdmin : 'UNDEFINED',
+                hasTokens: !!userInfo.accessToken && !!userInfo.refreshToken
+            });
 
             // Kiểm tra tính hợp lệ của dữ liệu
             if (!userInfo.user || !userInfo.accessToken || !userInfo.refreshToken || !userInfo.expiresAt) {
-                console.warn('Dữ liệu người dùng không hợp lệ, đăng xuất');
+                console.warn('[AuthContext] Dữ liệu người dùng không hợp lệ, đăng xuất');
                 logout();
                 return null;
             }
 
+            // Ensure isAdmin is defined
+            if (userInfo.user.isAdmin === undefined) {
+                console.warn('[AuthContext] isAdmin property is undefined, setting default value to false');
+                userInfo.user.isAdmin = false;
+            }
+
             return userInfo;
         } catch (error) {
-            console.error('Error parsing user info from storage:', error);
+            console.error('[AuthContext] Error parsing user info from storage:', error);
             logout();
             return null;
         }
@@ -138,46 +158,81 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 userName: userInfo.user.userName,
                 tokenExpires: new Date(userInfo.expiresAt).toLocaleString(),
                 hasAccessToken: !!userInfo.accessToken,
-                hasRefreshToken: !!userInfo.refreshToken
+                hasRefreshToken: !!userInfo.refreshToken,
+                expiresIn: Math.floor((userInfo.expiresAt - Date.now()) / 1000 / 60) + ' phút'
             });
 
-            // Kiểm tra thời gian hết hạn
-            if (userInfo.expiresAt < Date.now()) {
-                console.log('Phiên đăng nhập đã hết hạn, thử làm mới token...');
-
-                const refreshSuccess = await handleTokenRefresh();
-                if (!refreshSuccess) {
-                    console.log('Làm mới token thất bại, đăng xuất');
-                    logout();
-                    return;
-                }
-
-                console.log('Làm mới token thành công, cập nhật phiên đăng nhập');
+            // Nếu chưa đăng nhập và có thông tin user, thiết lập trạng thái đăng nhập
+            if (!isLoggedIn && userInfo.user) {
+                setUser(userInfo.user);
+                setIsLoggedIn(true);
+                console.log('Khôi phục trạng thái đăng nhập từ storage:', {
+                    userName: userInfo.user.userName,
+                    isAdmin: userInfo.user.isAdmin
+                });
             }
 
-            // Kiểm tra thời gian không hoạt động
+            // Xử lý token hết hạn một cách linh hoạt hơn
+            const timeToExpire = userInfo.expiresAt - Date.now();
+
+            // Nếu token đã hết hạn hoặc sắp hết hạn, thử làm mới
+            if (timeToExpire < 5 * 60 * 1000) { // Giảm threshold xuống 5 phút
+                console.log('Token sắp hết hạn hoặc đã hết hạn, thử làm mới token...');
+                try {
+                    const refreshSuccess = await handleTokenRefresh();
+                    if (!refreshSuccess) {
+                        console.log('Làm mới token thất bại, tiếp tục với token hiện tại nếu còn hạn');
+                        // Chỉ logout nếu token thực sự đã hết hạn
+                        if (timeToExpire <= 0) {
+                            console.warn('Token đã hết hạn và không thể làm mới, đăng xuất');
+                            logout();
+                            return;
+                        }
+                    } else {
+                        console.log('Làm mới token thành công');
+                    }
+                } catch (error) {
+                    console.error('Lỗi khi làm mới token:', error);
+                    // Không logout ngay, chỉ nếu token thực sự đã hết hạn
+                    if (timeToExpire <= 0) {
+                        console.warn('Token đã hết hạn và refresh gặp lỗi, đăng xuất');
+                        logout();
+                        return;
+                    }
+                }
+            }
+
+            // Kiểm tra thời gian không hoạt động một cách khoan dung hơn
             const inactiveTime = Date.now() - lastActivity;
             const isRemembered = localStorage.getItem('userInfo') !== null;
             const maxInactiveTime = isRemembered ? REMEMBER_TIMEOUT : SESSION_TIMEOUT;
 
-            if (inactiveTime > maxInactiveTime) {
+            // Tăng thời gian dung sai thêm 5 phút
+            if (inactiveTime > maxInactiveTime + 5 * 60 * 1000) {
                 console.log('Phiên đăng nhập không hoạt động quá lâu, đăng xuất');
                 logout();
                 return;
             }
 
-            setUser(userInfo.user);
-            setIsLoggedIn(true);
-            console.log('Đã thiết lập trạng thái đăng nhập thành công');
+            // Cập nhật thời gian hoạt động
+            setLastActivity(Date.now());
         };
 
+        // Chạy ngay lập tức khi component mount
         checkAuthStatus();
 
-        // Kiểm tra phiên đăng nhập định kỳ
-        const intervalId = setInterval(checkAuthStatus, SESSION_CHECK_INTERVAL);
+        // Kiểm tra phiên đăng nhập định kỳ với tần suất thấp hơn để tránh quá nhiều request
+        const intervalId = setInterval(checkAuthStatus, 5 * 60 * 1000); // Kiểm tra 5 phút một lần
 
         // Theo dõi hoạt động người dùng
-        const updateActivity = () => setLastActivity(Date.now());
+        const updateActivity = () => {
+            const now = Date.now();
+            // Chỉ cập nhật nếu đã trôi qua ít nhất 1 phút kể từ lần cuối
+            if (now - lastActivity > 60 * 1000) {
+                setLastActivity(now);
+            }
+        }
+
         window.addEventListener('click', updateActivity);
         window.addEventListener('keydown', updateActivity);
         window.addEventListener('mousemove', updateActivity);
@@ -192,14 +247,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             window.removeEventListener('touchstart', updateActivity);
             window.removeEventListener('scroll', updateActivity);
         };
-    }, [lastActivity, refreshRetries]);
+    }, [lastActivity, refreshRetries, isLoggedIn]);
 
     // Làm mới phiên đăng nhập
     const refreshSession = async () => {
-        const userInfo = getUserInfoFromStorage();
-        if (!userInfo) return;
-
         try {
+            const userInfo = getUserInfoFromStorage();
+            if (!userInfo) return;
+
+            // Cập nhật thời gian hoạt động
+            setLastActivity(Date.now());
+            console.log('Cập nhật thời gian hoạt động: ', new Date().toLocaleString());
+
             // Nếu token sắp hết hạn (còn dưới 5 phút), thử làm mới token
             const timeToExpire = userInfo.expiresAt - Date.now();
             if (timeToExpire < 5 * 60 * 1000) {
@@ -209,9 +268,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             const isRemembered = localStorage.getItem('userInfo') !== null;
-
-            // Cập nhật thời gian hoạt động cuối cùng
-            setLastActivity(Date.now());
 
             // Cập nhật thời gian hết hạn
             const newExpiresAt = Date.now() + (isRemembered ? REMEMBER_TIMEOUT : SESSION_TIMEOUT);
@@ -232,6 +288,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = async (phoneNumber: string, password: string, rememberMe = false) => {
         try {
+            // Xóa cache xác thực admin khi đăng nhập mới
+            authAPI.clearAdminVerificationCache();
+
             console.log('Đang gọi API đăng nhập với số điện thoại:', phoneNumber);
 
             const response = await authAPI.login(phoneNumber, password);
@@ -255,9 +314,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setUser(user);
             setIsLoggedIn(true);
             setLastActivity(Date.now());
+            // Reset trạng thái xác thực admin khi đăng nhập mới
+            setAdminVerified(false);
 
             // Thiết lập thời gian hết hạn (sử dụng thời gian từ API nếu có, nếu không thì tính dựa trên rememberMe)
             const expireTime = expiresAt ? expiresAt : Date.now() + (rememberMe ? REMEMBER_TIMEOUT : SESSION_TIMEOUT);
+
+            // Ensure isAdmin is defined
+            if (user.isAdmin === undefined) {
+                console.warn('[AuthContext] isAdmin is undefined in API response, setting default value to false');
+                user.isAdmin = false;
+            }
 
             // Lưu thông tin vào localStorage hoặc sessionStorage tùy thuộc vào rememberMe
             const userInfo: UserInfo = {
@@ -269,8 +336,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             saveUserInfoToStorage(userInfo, rememberMe);
 
-            console.log(`Đăng nhập thành công (Ghi nhớ: ${rememberMe ? 'Có' : 'Không'})`);
-            console.log('Phiên hết hạn vào:', new Date(expireTime).toLocaleString());
+            console.log(`[AuthContext] Đăng nhập thành công (Ghi nhớ: ${rememberMe ? 'Có' : 'Không'})`);
+            console.log('[AuthContext] Phiên hết hạn vào:', new Date(expireTime).toLocaleString());
+            console.log('[AuthContext] Thông tin người dùng:', {
+                id: user.id,
+                userName: user.userName,
+                phoneNumber: user.phoneNumber,
+                isAdmin: user.isAdmin
+            });
+            console.log('[AuthContext] AUTH STATE AFTER LOGIN:', {
+                isLoggedIn: true,
+                user: {
+                    id: user.id,
+                    userName: user.userName,
+                    isAdmin: user.isAdmin
+                }
+            });
 
             // Reset refresh retries khi đăng nhập thành công
             setRefreshRetries(0);
@@ -292,6 +373,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Xóa thông tin người dùng khỏi state
             setUser(null);
             setIsLoggedIn(false);
+            // Reset trạng thái đã xác thực admin
+            setAdminVerified(false);
+            // Xóa cache xác thực admin
+            authAPI.clearAdminVerificationCache();
 
             // Xóa thông tin từ cả localStorage và sessionStorage
             localStorage.removeItem('userInfo');
@@ -377,19 +462,60 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    // Phương thức xác thực quyền admin một lần duy nhất
+    const verifyAdminOnce = async (): Promise<boolean> => {
+        try {
+            // Kiểm tra nếu đã xác thực admin trước đó
+            if (adminVerified) {
+                console.log('[AuthContext] Admin đã được xác thực trước đó');
+                return true;
+            }
+
+            // Kiểm tra nếu chưa đăng nhập hoặc không phải admin
+            if (!isLoggedIn || !user || !user.isAdmin) {
+                console.log('[AuthContext] Không phải admin hoặc chưa đăng nhập');
+                return false;
+            }
+
+            // Refresh token trước khi kiểm tra quyền admin
+            await refreshSession();
+
+            // Gọi API xác thực admin
+            const isAdmin = await authAPI.verifyAdmin();
+
+            if (isAdmin) {
+                console.log('[AuthContext] Xác thực admin thành công');
+                setAdminVerified(true);
+                return true;
+            } else {
+                console.log('[AuthContext] Xác thực admin thất bại');
+                setAdminVerified(false);
+                return false;
+            }
+        } catch (error) {
+            console.error('[AuthContext] Lỗi khi xác thực admin:', error);
+            setAdminVerified(false);
+            return false;
+        }
+    };
 
     return (
-        <AuthContext.Provider value={{
-            isLoggedIn,
-            user,
-            login,
-            logout,
-            refreshSession,
-            getUserProfile,
-            changePassword,
-            currentUser: user,
-            register
-        }}>
+        <AuthContext.Provider
+            value={{
+                isLoggedIn,
+                isAuthenticated: isLoggedIn,
+                user,
+                adminVerified,
+                verifyAdminOnce,
+                login,
+                logout,
+                refreshSession,
+                getUserProfile,
+                changePassword,
+                currentUser: user,
+                register
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );
@@ -398,7 +524,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 // Hook để sử dụng context
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (context === undefined) {
+    if (!context) {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;

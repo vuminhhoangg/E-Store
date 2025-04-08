@@ -5,6 +5,7 @@ export interface User {
     diaChi?: string;
     token?: string;
     rememberMe?: boolean;
+    isAdmin?: boolean;
 }
 
 export interface RegisterData {
@@ -18,6 +19,7 @@ export interface AuthContextType {
     currentUser: User | null;
     loading: boolean;
     error: string | null;
+    isAuthenticated: boolean;
     login: (phoneNumber: string, password: string, rememberMe: boolean) => Promise<User>;
     register: (userData: RegisterData) => Promise<User>;
     logout: () => Promise<void>;

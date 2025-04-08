@@ -1,48 +1,94 @@
-import 'dotenv/config';
 import express from 'express';
-import bodyParser from 'body-parser';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import connectDB from './src/configs/db.js';
 import routes from './src/routes/index.js';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 
-// Khởi tạo app
+dotenv.config();
+
 const app = express();
 
-// Áp dụng helmet middleware để bảo mật headers
-app.use(helmet());
+// Kết nối database
+connectDB();
 
-// Giới hạn số lượng request từ một IP
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 phút
-    max: 100, // giới hạn mỗi IP 100 request trong mỗi windowMs
-    message: 'Quá nhiều yêu cầu từ địa chỉ IP này, vui lòng thử lại sau 15 phút'
-});
-
-// Áp dụng giới hạn cho tất cả các request
-app.use(limiter);
-
-// Middleware CORS
-app.use(cors({
-    origin: ['http://localhost:5000', 'http://localhost:5173', 'http://localhost:5001'],
+// CORS configuration
+const corsOptions = {
+    origin: process.env.NODE_ENV === 'production'
+        ? process.env.FRONTEND_URL
+        : [process.env.FRONTEND_URL, process.env.CORS_ORIGIN],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
+    maxAge: 86400 // 24 hours
+};
 
-// Middleware JSON parser
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Middleware
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Logging middleware
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
 
 // Routes
 app.use('/api', routes);
 
-// Middleware xử lý lỗi
+// 404 handler
+app.use((req, res, next) => {
+    console.warn(`404 - Not Found: ${req.method} ${req.url}`);
+    res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tài nguyên',
+        path: req.url
+    });
+});
+
+// Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    const errorDetails = {
+        timestamp: new Date().toISOString(),
+        path: req.path,
+        method: req.method,
+        error: {
+            name: err.name,
+            message: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        }
+    };
+
+    console.error('Error:', errorDetails);
+
+    // Xử lý các loại lỗi khác nhau
+    if (err.name === 'ValidationError') {
+        return res.status(400).json({
+            success: false,
+            message: 'Dữ liệu không hợp lệ',
+            errors: Object.values(err.errors).map(e => e.message)
+        });
+    }
+
+    if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+            success: false,
+            message: 'Token không hợp lệ'
+        });
+    }
+
+    if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+            success: false,
+            message: 'Token đã hết hạn'
+        });
+    }
+
     res.status(err.status || 500).json({
         success: false,
-        message: err.message || 'Đã có lỗi xảy ra, vui lòng thử lại sau'
+        message: 'Đã xảy ra lỗi server',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { authUser, registerUser, refreshToken, logout } from '../controllers/authController.js';
+import { authUser, registerUser, refreshToken, logout, verifyAdmin } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -8,7 +8,7 @@ const router = express.Router();
 router.post('/register', registerUser);
 router.post('/login', authUser);
 router.post('/refresh-token', refreshToken);
-router.post('/logout', logout);
+router.post('/logout', protect, logout);
 
 // Protected routes
 router.get('/profile', protect, (req, res) => {
@@ -30,5 +30,8 @@ router.post('/protected-logout', protect, (req, res) => {
 router.get('/test', (req, res) => {
     res.status(200).json({ message: 'Hello from test API!' });
 });
+
+// Admin verification
+router.get('/verify-admin', protect, verifyAdmin);
 
 export default router;

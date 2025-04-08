@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -15,9 +15,9 @@ const LoginPage = () => {
 
     const navigate = useNavigate()
     const location = useLocation()
-    const { login } = useAuth()
+    const auth = useAuth()
 
-    if (!login) {
+    if (!auth) {
         return <div>Lỗi: Không thể kết nối đến hệ thống xác thực</div>
     }
 
@@ -51,11 +51,34 @@ const LoginPage = () => {
 
         try {
             console.log('Bắt đầu đăng nhập với số điện thoại:', phoneNumber)
-            await login(phoneNumber, password, rememberMe)
-            console.log('Đăng nhập thành công, chuyển hướng đến trang chủ')
+            await auth.login(phoneNumber, password, rememberMe)
+            console.log('Đăng nhập thành công, kiểm tra thông tin người dùng:')
 
-            // Redirect user after successful login
-            navigate('/')
+            // Kiểm tra thông tin đã lưu trong localStorage hoặc sessionStorage
+            const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo')
+            if (userInfoStr) {
+                const userInfo = JSON.parse(userInfoStr)
+                console.log('Thông tin người dùng đã lưu:', {
+                    userId: userInfo.user?.id,
+                    userName: userInfo.user?.userName,
+                    isAdmin: userInfo.user?.isAdmin,
+                    hasAccessToken: !!userInfo.accessToken,
+                    hasRefreshToken: !!userInfo.refreshToken,
+                    expiresAt: userInfo.expiresAt ? new Date(userInfo.expiresAt).toLocaleString() : undefined
+                })
+
+                // Kiểm tra nếu người dùng là admin, chuyển hướng đến trang admin dashboard
+                if (userInfo.user?.isAdmin) {
+                    console.log('Người dùng là admin, chuyển hướng đến trang admin dashboard')
+                    navigate('/admin/dashboard')
+                } else {
+                    // Nếu không phải admin, chuyển hướng đến trang trước đó hoặc trang chủ
+                    navigate(from)
+                }
+            } else {
+                console.log('Không tìm thấy thông tin người dùng trong storage')
+                navigate(from)
+            }
         } catch (error: any) {
             console.error('Lỗi trong quá trình đăng nhập:', error)
             setError(error.message || 'Đăng nhập thất bại, vui lòng thử lại')
@@ -67,6 +90,47 @@ const LoginPage = () => {
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword)
     }
+
+    useEffect(() => {
+        if (auth.isLoggedIn) {
+            let redirectTo = '/';
+
+            // Đối với admin, redirect về trang admin
+            if (auth.user?.isAdmin) {
+                // Kiểm tra nếu có đường dẫn admin được lưu trước đó
+                const lastAdminPath = sessionStorage.getItem('lastAdminPath');
+
+                // Kiểm tra xem có đường dẫn từ state không (từ Protected Route)
+                const fromPath = location.state?.from?.pathname;
+
+                // Ưu tiên đường dẫn từ state trước
+                if (fromPath && fromPath.startsWith('/admin')) {
+                    redirectTo = fromPath;
+                    console.log('Redirecting to previous admin path from navigation:', fromPath);
+                }
+                // Sau đó đến lastAdminPath
+                else if (lastAdminPath) {
+                    redirectTo = lastAdminPath;
+                    console.log('Redirecting to saved admin path:', lastAdminPath);
+                }
+                // Mặc định đến dashboard
+                else {
+                    redirectTo = '/admin/dashboard';
+                    console.log('Redirecting to default admin dashboard');
+                }
+            }
+            // Đối với user thường, redirect theo quy tắc hiện tại
+            else {
+                // Nếu có đường dẫn từ state, dùng nó
+                if (location.state?.from?.pathname) {
+                    redirectTo = location.state.from.pathname;
+                }
+            }
+
+            // Thực hiện redirect
+            navigate(redirectTo, { replace: true });
+        }
+    }, [auth.isLoggedIn, auth.user, navigate, location]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-indigo-600 p-4">

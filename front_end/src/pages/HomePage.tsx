@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useContext } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { Product } from '../model/model'
+import { productAPI } from '../services/products'
+import { cartAPI } from '../services/cartService'
+import { toast } from 'react-toastify'
+import { AuthContext } from '../components/AuthContext'
 
 const HomePage = () => {
-    const [products, setProducts] = useState<any[]>([])
+    const [products, setProducts] = useState<Product[]>([])
+    const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
     const [loading, setLoading] = useState(true)
+    const { isAuthenticated } = useContext(AuthContext)
+    const navigate = useNavigate()
     const [categories] = useState([
         { id: 'all', name: 'Tất cả' },
         { id: 'smartphones', name: 'Điện thoại' },
@@ -49,7 +58,7 @@ const HomePage = () => {
         {
             title: 'Thiết bị mới ra mắt',
             description: 'Trải nghiệm những công nghệ mới nhất với các thiết bị vừa được ra mắt. Đặt hàng ngay hôm nay!',
-            image: 'https://images.unsplash.com/photo-1603351154351-5e2d0600ff5a?auto=format&fit=crop&q=80&w=600',
+            image: 'https://th.bing.com/th/id/OIP.p71U8qoYz48wgjjan_cQDwHaD3?rs=1&pid=ImgDetMain',
             primary: {
                 text: 'Đặt trước',
                 link: '/pre-order'
@@ -96,7 +105,7 @@ const HomePage = () => {
             id: 1,
             title: 'Apple ra mắt iPhone 16 với công nghệ AI tiên tiến',
             summary: 'Dòng iPhone mới nhất của Apple tích hợp các tính năng AI tiên tiến, mang đến trải nghiệm người dùng hoàn toàn mới.',
-            image: 'https://images.unsplash.com/photo-1592750475338-74b7b21d0646?auto=format&fit=crop&q=80&w=600',
+            image: 'https://www.iphoned.nl/wp-content/uploads/2024/09/iphone-16-pre-order.jpg',
             date: '05/11/2023',
             url: '/news/1'
         },
@@ -128,12 +137,10 @@ const HomePage = () => {
         setCurrentBanner((prev) => (prev === 0 ? banners.length - 1 : prev - 1))
     }
 
-    // Thêm hàm điều hướng cho TechNews
     const nextTechNews = () => {
         setCurrentTechNews((prev) => (prev === techNews.length - 1 ? 0 : prev + 1))
     }
 
-    // Thêm hàm điều hướng cho TechNews
     const prevTechNews = () => {
         setCurrentTechNews((prev) => (prev === 0 ? techNews.length - 1 : prev - 1))
     }
@@ -146,120 +153,67 @@ const HomePage = () => {
         return () => clearInterval(timer)
     }, [])
 
+    // Fetch top products based on active category
     useEffect(() => {
-        // Mô phỏng API call
-        const fetchProducts = async () => {
+        const fetchTopProducts = async () => {
             try {
-                // Trong dự án thực, thay thế bằng API call thật
-                setTimeout(() => {
-                    const mockProducts = [
-                        {
-                            id: 1,
-                            name: 'iPhone 14 Pro Max',
-                            price: 28990000,
-                            oldPrice: 32990000,
-                            image: 'https://images.unsplash.com/photo-1664478546384-d57e49c96b8e?auto=format&fit=crop&q=80&w=400',
-                            category: 'smartphones',
-                            rating: 4.8,
-                            discount: 12,
-                            sold: 120,
-                        },
-                        {
-                            id: 2,
-                            name: 'Samsung Galaxy S23 Ultra',
-                            price: 24990000,
-                            oldPrice: 31990000,
-                            image: 'https://images.unsplash.com/photo-1675785931264-f56d09dae24b?auto=format&fit=crop&q=80&w=400',
-                            category: 'smartphones',
-                            rating: 4.7,
-                            discount: 22,
-                            sold: 98,
-                        },
-                        {
-                            id: 3,
-                            name: 'MacBook Pro M2',
-                            price: 35990000,
-                            oldPrice: 39990000,
-                            image: 'https://images.unsplash.com/photo-1569770218135-bea267ed7e84?auto=format&fit=crop&q=80&w=400',
-                            category: 'laptops',
-                            rating: 4.9,
-                            discount: 10,
-                            sold: 75,
-                        },
-                        {
-                            id: 4,
-                            name: 'Dell XPS 13',
-                            price: 28990000,
-                            oldPrice: 30990000,
-                            image: 'https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?auto=format&fit=crop&q=80&w=400',
-                            category: 'laptops',
-                            rating: 4.5,
-                            discount: 7,
-                            sold: 62,
-                        },
-                        {
-                            id: 5,
-                            name: 'iPad Pro M2',
-                            price: 22990000,
-                            oldPrice: 25990000,
-                            image: 'https://images.unsplash.com/photo-1557825835-70d97c4aa567?auto=format&fit=crop&q=80&w=400',
-                            category: 'tablets',
-                            rating: 4.8,
-                            discount: 12,
-                            sold: 88,
-                        },
-                        {
-                            id: 6,
-                            name: 'Apple Watch Series 8',
-                            price: 10990000,
-                            oldPrice: 11990000,
-                            image: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=400',
-                            category: 'watches',
-                            rating: 4.6,
-                            discount: 8,
-                            sold: 110,
-                        },
-                        {
-                            id: 7,
-                            name: 'AirPods Pro',
-                            price: 5990000,
-                            oldPrice: 6990000,
-                            image: 'https://images.unsplash.com/photo-1603351154351-5e2d0600ff5a?auto=format&fit=crop&q=80&w=400',
-                            category: 'accessories',
-                            rating: 4.7,
-                            discount: 14,
-                            sold: 230,
-                        },
-                        {
-                            id: 8,
-                            name: 'Samsung Galaxy Tab S9 Ultra',
-                            price: 18990000,
-                            oldPrice: 21990000,
-                            image: 'https://images.unsplash.com/photo-1589739900266-43b2843f4c12?auto=format&fit=crop&q=80&w=400',
-                            category: 'tablets',
-                            rating: 4.6,
-                            discount: 14,
-                            sold: 56,
-                        },
-                    ]
-                    setProducts(mockProducts)
-                    setLoading(false)
-                }, 1000)
+                setLoading(true)
+                const category = activeCategory !== 'all' ? activeCategory : ''
+                const response = await productAPI.getTopProducts(category)
+                console.log('Top products response:', response.data)
+
+                if (response.data && response.data.data && response.data.data.products) {
+                    setProducts(response.data.data.products)
+                } else if (response.data && response.data.products) {
+                    setProducts(response.data.products)
+                } else {
+                    setProducts([])
+                    console.error('Không nhận được định dạng dữ liệu sản phẩm mong đợi')
+                }
+                setLoading(false)
             } catch (error) {
-                console.error('Error fetching products:', error)
+                console.error('Lỗi khi tải sản phẩm nổi bật:', error)
+                setProducts([])
                 setLoading(false)
             }
         }
 
-        fetchProducts()
-    }, [])
+        fetchTopProducts()
+    }, [activeCategory])
 
-    const filteredProducts = activeCategory === 'all'
-        ? products
-        : products.filter(product => product.category === activeCategory)
+    // Filter products when category changes
+    useEffect(() => {
+        if (activeCategory === 'all') {
+            setFilteredProducts(products)
+        } else {
+            const filtered = products.filter(product => product.category === activeCategory)
+            setFilteredProducts(filtered)
+        }
+    }, [activeCategory, products])
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
+    }
+
+    // Hàm xử lý thêm vào giỏ hàng
+    const handleAddToCart = async (productId: string) => {
+        if (!isAuthenticated) {
+            toast.info('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng')
+            navigate('/login', { state: { from: '/' } })
+            return
+        }
+
+        try {
+            const response = await cartAPI.addToCart(productId, 1)
+            if (response.success) {
+                toast.success('Đã thêm sản phẩm vào giỏ hàng!')
+            } else {
+                toast.error(response.message || 'Không thể thêm sản phẩm vào giỏ hàng')
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error)
+            toast.error('Đã xảy ra lỗi khi thêm vào giỏ hàng')
+        }
     }
 
     return (
@@ -387,113 +341,112 @@ const HomePage = () => {
 
                 {/* Products */}
                 <div className="mb-16">
-                    <div className="flex justify-between items-center mb-8">
-                        <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Sản phẩm nổi bật</h2>
-                        <Link to="/products" className="text-blue-600 hover:text-blue-800 font-medium flex items-center">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl md:text-2xl font-bold text-gray-800">
+                            {activeCategory === 'all'
+                                ? 'Sản phẩm nổi bật nhất'
+                                : `${categories.find(c => c.id === activeCategory)?.name} nổi bật nhất`}
+                        </h2>
+                        <Link to="/products" className="text-blue-600 hover:text-blue-800 font-medium flex items-center group">
                             Xem tất cả
-                            <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
                             </svg>
                         </Link>
                     </div>
 
                     {loading ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {[...Array(4)].map((_, index) => (
-                                <div key={index} className="animate-pulse bg-white rounded-lg shadow-md overflow-hidden">
-                                    <div className="bg-gray-300 w-full h-52"></div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {[...Array(8)].map((_, index) => (
+                                <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+                                    <div className="h-40 bg-gray-200"></div>
+                                    <div className="p-3">
+                                        <div className="h-3 bg-gray-200 rounded w-3/4 mb-2"></div>
+                                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : products.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {products.map((product) => (
+                                <div
+                                    key={product._id}
+                                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 group"
+                                >
+                                    <div className="relative overflow-hidden">
+                                        <Link to={`/product/${product._id}`}>
+                                            <div className="relative aspect-square w-full overflow-hidden">
+                                                <img
+                                                    src={product.image}
+                                                    alt={product.name}
+                                                    className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
+                                                />
+                                                {product.countInStock === 0 && (
+                                                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10">
+                                                        Hết hàng
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-2 left-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10">
+                                                    Bán chạy
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    </div>
+
                                     <div className="p-4">
-                                        <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                                        <div className="h-4 bg-gray-300 rounded w-1/2 mb-4"></div>
-                                        <div className="h-6 bg-gray-300 rounded w-1/3 mb-2"></div>
-                                        <div className="h-4 bg-gray-300 rounded w-full mt-4"></div>
+                                        <Link to={`/product/${product._id}`}>
+                                            <h3 className="text-gray-800 font-medium text-sm mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                                                {product.name}
+                                            </h3>
+                                        </Link>
+
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-base font-bold text-blue-600">
+                                                {formatPrice(product.price)}
+                                            </span>
+                                            <div className="flex items-center">
+                                                <div className="flex mr-1">
+                                                    {[...Array(5)].map((_, i) => (
+                                                        <svg
+                                                            key={i}
+                                                            className={`w-3 h-3 ${i < Math.floor(product.rating) ? 'text-yellow-400' : 'text-gray-300'}`}
+                                                            fill="currentColor"
+                                                            viewBox="0 0 20 20"
+                                                        >
+                                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118l-2.8-2.034c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                        </svg>
+                                                    ))}
+                                                </div>
+                                                <span className="text-xs text-gray-500">({product.numReviews})</span>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => handleAddToCart(product._id)}
+                                            disabled={product.countInStock === 0}
+                                            className={`mt-3 w-full py-2 px-3 rounded-md transition-all duration-300 flex items-center justify-center text-sm
+                                                ${product.countInStock === 0
+                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transform hover:scale-105'}`}
+                                        >
+                                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                            </svg>
+                                            {product.countInStock === 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+                                        </button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <>
-                            {filteredProducts.length === 0 ? (
-                                <div className="text-center py-10">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <p className="text-gray-500 text-xl mt-4">Không tìm thấy sản phẩm nào</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {filteredProducts.map((product) => (
-                                        <div
-                                            key={product.id}
-                                            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300"
-                                        >
-                                            <div className="relative overflow-hidden">
-                                                <Link to={`/product/${product.id}`}>
-                                                    <img
-                                                        src={product.image}
-                                                        alt={product.name}
-                                                        className="w-full h-52 object-cover transform hover:scale-105 transition-transform duration-300"
-                                                    />
-                                                </Link>
-
-                                                {product.discount > 0 && (
-                                                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold py-1 px-2 rounded">
-                                                        -{product.discount}%
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="p-4">
-                                                <Link to={`/product/${product.id}`}>
-                                                    <h3 className="text-lg font-medium text-gray-800 hover:text-blue-600 transition-colors mb-2">
-                                                        {product.name}
-                                                    </h3>
-                                                </Link>
-
-                                                <div className="flex items-center mb-2">
-                                                    <div className="flex text-yellow-400">
-                                                        {[...Array(5)].map((_, i) => (
-                                                            <svg
-                                                                key={i}
-                                                                className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'text-yellow-400' : 'text-gray-300'}`}
-                                                                fill="currentColor"
-                                                                viewBox="0 0 20 20"
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                            >
-                                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                                                            </svg>
-                                                        ))}
-                                                    </div>
-                                                    <span className="text-xs text-gray-500 ml-1">({product.sold} đã bán)</span>
-                                                </div>
-
-                                                <div className="flex items-center mt-2">
-                                                    <span className="text-lg font-bold text-gray-800">
-                                                        {formatPrice(product.price)}
-                                                    </span>
-                                                    {product.oldPrice && (
-                                                        <span className="ml-2 text-sm text-gray-500 line-through">
-                                                            {formatPrice(product.oldPrice)}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <button className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center">
-                                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                                    </svg>
-                                                    Thêm vào giỏ
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
+                        <div className="text-center py-8">
+                            <p className="text-gray-600 text-lg">Không tìm thấy sản phẩm nào trong danh mục này</p>
+                        </div>
                     )}
                 </div>
 
-                {/* Tech News Section (replacing Banner) */}
+                {/* Tech News Section */}
                 <div className="mb-16">
                     <div className="flex justify-between items-center mb-8">
                         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Tin tức công nghệ</h2>
@@ -611,4 +564,4 @@ const HomePage = () => {
     )
 }
 
-export default HomePage 
+export default HomePage

@@ -158,10 +158,10 @@ const Footer = () => {
                                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/1200px-Mastercard-logo.svg.png" alt="MasterCard" className="h-6" />
                                 </div>
                                 <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Momo_Logo.png/800px-Momo_Logo.png" alt="MoMo" className="h-6" />
+                                    <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-MoMo-Square.png" alt="MoMo" className="h-9" />
                                 </div>
                                 <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center">
-                                    <img src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MBBank_logo.png" alt="MB Bank" className="h-6" />
+                                    <img src="https://img4.thuthuatphanmem.vn/uploads/2020/08/30/logo-mb-bank-cu_011517748.png" alt="MB Bank" className="h-9" />
                                 </div>
                                 <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center text-center text-gray-800 font-medium text-xs">
                                     Tiền mặt
@@ -172,19 +172,16 @@ const Footer = () => {
                             <h3 className="text-lg font-semibold text-white mb-4">Đơn vị vận chuyển</h3>
                             <div className="flex flex-wrap gap-4">
                                 <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center">
-                                    <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-Giao-hang-nhanh-GHN.png" alt="GHN" className="h-6" />
+                                    <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-GHN-Orange-1024x1024.png" alt="GHN" className="h-9" />
                                 </div>
                                 <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center">
-                                    <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/01/Logo-GHTK-Giao-hang-tiet-kiem.png" alt="GHTK" className="h-6" />
+                                    <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-GHTK-H-768x198.png" alt="GHTK" className="h-8" />
                                 </div>
                                 <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center">
-                                    <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-J-T-Express.png" alt="J&T" className="h-6" />
+                                    <img src="https://viettelpost.com.vn/wp-content/uploads/2021/05/Logo-Viettel-Post.jpg" alt="Viettel Post" className="h-10" />
                                 </div>
                                 <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center">
-                                    <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/05/Logo-Viettel-Post.png" alt="Viettel Post" className="h-6" />
-                                </div>
-                                <div className="bg-white p-2 rounded-md w-16 h-10 flex items-center justify-center">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Logo_Grab.svg/2560px-Logo_Grab.svg.png" alt="Grab" className="h-5" />
+                                    <img src="https://th.bing.com/th/id/OIP.9N0sjeFMOOkcfuOwzldzLwHaHa?rs=1&pid=ImgDetMain" alt="Grab" className="h-9" />
                                 </div>
                             </div>
                         </div>

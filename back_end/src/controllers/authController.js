@@ -47,7 +47,8 @@ const authUser = asyncHandler(async (req, res) => {
                 id: user._id,
                 userName: user.userName,
                 phoneNumber: user.phoneNumber,
-                diaChi: user.diaChi
+                diaChi: user.diaChi,
+                isAdmin: user.isAdmin || false  // Đảm bảo trường isAdmin luôn được trả về
             },
             tokens,
             expiresIn: tokens.expiresIn
@@ -195,7 +196,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 });
 
-export const refreshToken = asyncHandler(async (req, res) => {
+const refreshToken = asyncHandler(async (req, res) => {
     const { refreshToken: token } = req.body;
 
     if (!token) {
@@ -269,7 +270,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
     }
 });
 
-export const logout = asyncHandler(async (req, res) => {
+const logout = asyncHandler(async (req, res) => {
     const { refreshToken: token } = req.body;
 
     if (!token) {
@@ -300,4 +301,46 @@ export const logout = asyncHandler(async (req, res) => {
     }
 });
 
-export { registerUser, authUser };
+// @desc    Xác thực quyền admin
+// @route   GET /api/auth/verify-admin
+// @access  Private
+const verifyAdmin = asyncHandler(async (req, res) => {
+    try {
+        console.log('[Auth] Verifying admin status for user:', {
+            userId: req.user._id,
+            userName: req.user.userName,
+            isAdmin: req.user.isAdmin
+        });
+
+        if (!req.user || !req.user.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: 'Không có quyền admin'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Xác thực admin thành công',
+            data: {
+                userId: req.user._id,
+                userName: req.user.userName,
+                isAdmin: true
+            }
+        });
+    } catch (error) {
+        console.error('[Auth] Error verifying admin:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi xác thực quyền admin'
+        });
+    }
+});
+
+export {
+    authUser,
+    registerUser,
+    refreshToken,
+    logout,
+    verifyAdmin
+};

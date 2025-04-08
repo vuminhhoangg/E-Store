@@ -36,6 +36,12 @@ const orderSchema = new mongoose.Schema({
         update_time: { type: String },
         email_address: { type: String },
     },
+    status: {
+        type: String,
+        required: true,
+        enum: ['pending', 'processing', 'shipping', 'delivered', 'cancelled'],
+        default: 'pending'
+    },
     itemsPrice: {
         type: Number,
         required: true,
@@ -72,6 +78,9 @@ const orderSchema = new mongoose.Schema({
     deliveredAt: {
         type: Date,
     },
+    cancelledAt: {
+        type: Date,
+    }
 }, {
     timestamps: true,
 });

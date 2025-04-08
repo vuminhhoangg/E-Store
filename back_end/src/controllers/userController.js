@@ -1,6 +1,9 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
+import httpStatus from 'http-status';
+import bcrypt from 'bcryptjs';
+import { generateToken } from '../utils/jwtUtils.js';
 
 // @desc    Đăng ký người dùng mới
 // @route   POST /api/users
@@ -11,8 +14,9 @@ const registerUser = asyncHandler(async (req, res) => {
     const userExists = await User.findOne({ phoneNumber });
 
     if (userExists) {
-        res.status(400);
-        throw new Error('Số điện thoại đã được sử dụng');
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: 'Số điện thoại đã được sử dụng'
+        });
     }
 
     const user = await User.create({
@@ -26,25 +30,26 @@ const registerUser = asyncHandler(async (req, res) => {
         const userAgent = req.headers['user-agent'];
         const ipAddress = req.ip || req.connection.remoteAddress;
 
-        // Cập nhật thông tin thiết bị
         await user.updateDevice(userAgent, ipAddress);
-
-        // Cập nhật thời gian đăng nhập lần cuối
         user.lastLogin = Date.now();
         await user.save();
 
-        res.status(201).json({
-            _id: user._id,
-            userName: user.userName,
-            phoneNumber: user.phoneNumber,
-            diaChi: user.diaChi,
-            isAdmin: user.isAdmin,
-            token: generateToken(user._id),
+        return res.status(httpStatus.CREATED).json({
+            data: {
+                _id: user._id,
+                userName: user.userName,
+                phoneNumber: user.phoneNumber,
+                diaChi: user.diaChi,
+                isAdmin: user.isAdmin,
+                token: generateToken(user._id),
+            },
+            message: 'User registered successfully'
         });
-    } else {
-        res.status(400);
-        throw new Error('Dữ liệu người dùng không hợp lệ');
     }
+
+    return res.status(httpStatus.BAD_REQUEST).json({
+        message: 'Dữ liệu người dùng không hợp lệ'
+    });
 });
 
 // @desc    Xác thực người dùng & lấy token
@@ -52,80 +57,70 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access  Public
 const authUser = asyncHandler(async (req, res) => {
     const { phoneNumber, password } = req.body;
-
     const user = await User.findOne({ phoneNumber });
 
     if (!user) {
-        res.status(401);
-        throw new Error('Số điện thoại hoặc mật khẩu không đúng');
+        return res.status(httpStatus.UNAUTHORIZED).json({
+            message: 'Số điện thoại hoặc mật khẩu không đúng'
+        });
     }
 
-    // Kiểm tra xem tài khoản có bị khóa không
     if (user.isBlocked) {
-        res.status(401);
-        throw new Error('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.');
+        return res.status(httpStatus.UNAUTHORIZED).json({
+            message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'
+        });
     }
 
-    // Kiểm tra xem tài khoản có bị tạm khóa không
     const now = new Date();
     if (user.lockUntil && user.lockUntil > now) {
         const minutesLeft = Math.ceil((user.lockUntil - now) / (60 * 1000));
-        res.status(401);
-        throw new Error(`Tài khoản tạm thời bị khóa. Vui lòng thử lại sau ${minutesLeft} phút.`);
+        return res.status(httpStatus.UNAUTHORIZED).json({
+            message: `Tài khoản tạm thời bị khóa. Vui lòng thử lại sau ${minutesLeft} phút.`
+        });
     }
 
-    // Kiểm tra mật khẩu
     const isMatch = await user.matchPassword(password);
-
     if (isMatch) {
-        // Reset số lần đăng nhập thất bại
         user.loginAttempts = 0;
         user.lockUntil = null;
         user.lastLogin = Date.now();
 
-        // Cập nhật thông tin thiết bị
         const userAgent = req.headers['user-agent'];
         const ipAddress = req.ip || req.connection.remoteAddress;
         await user.updateDevice(userAgent, ipAddress);
-
         await user.save();
 
         const token = generateToken(user._id);
-
-        // Lưu thời gian token được làm mới
         user.lastTokenRefresh = Date.now();
         await user.save();
 
-        const rememberMe = req.body.rememberMe || false;
-
-        res.json({
-            _id: user._id,
-            userName: user.userName,
-            phoneNumber: user.phoneNumber,
-            diaChi: user.diaChi,
-            isAdmin: user.isAdmin,
-            token,
-            rememberMe
+        return res.status(httpStatus.OK).json({
+            data: {
+                _id: user._id,
+                userName: user.userName,
+                phoneNumber: user.phoneNumber,
+                diaChi: user.diaChi,
+                isAdmin: user.isAdmin,
+                token,
+                rememberMe: req.body.rememberMe || false
+            },
+            message: 'User data retrieved successfully'
         });
-    } else {
-        // Tăng số lần đăng nhập thất bại
-        user.loginAttempts += 1;
-
-        // Nếu đăng nhập thất bại quá 5 lần, khóa tài khoản trong 30 phút
-        if (user.loginAttempts >= 5) {
-            user.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 phút
-        }
-
-        await user.save();
-
-        res.status(401);
-
-        if (user.loginAttempts >= 5) {
-            throw new Error('Đăng nhập thất bại quá nhiều lần. Tài khoản đã bị tạm khóa 30 phút.');
-        } else {
-            throw new Error('Số điện thoại hoặc mật khẩu không đúng');
-        }
     }
+
+    user.loginAttempts += 1;
+    if (user.loginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+        await user.save();
+        return res.status(httpStatus.UNAUTHORIZED).json({
+            message: 'Đăng nhập thất bại quá nhiều lần. Tài khoản đã bị tạm khóa 30 phút.'
+        });
+    }
+
+    await user.save();
+    return res.status(httpStatus.UNAUTHORIZED).json({
+        message: 'Số điện thoại hoặc mật khẩu không đúng'
+    });
 });
 
 // @desc    Đăng xuất người dùng
@@ -133,18 +128,14 @@ const authUser = asyncHandler(async (req, res) => {
 // @access  Private
 const logoutUser = asyncHandler(async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
-
     if (token) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id);
-
         if (user) {
-            // Thêm token hiện tại vào danh sách token bị vô hiệu hóa
             await user.invalidateToken(token);
         }
     }
-
-    res.json({ message: 'Đăng xuất thành công' });
+    return res.status(httpStatus.OK).json({ message: 'Đăng xuất thành công' });
 });
 
 // @desc    Lấy thông tin người dùng
@@ -152,9 +143,13 @@ const logoutUser = asyncHandler(async (req, res) => {
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id).select('-password -invalidatedTokens');
-
-    if (user) {
-        res.json({
+    if (!user) {
+        return res.status(httpStatus.NOT_FOUND).json({
+            message: 'Không tìm thấy người dùng'
+        });
+    }
+    return res.status(httpStatus.OK).json({
+        data: {
             _id: user._id,
             userName: user.userName,
             phoneNumber: user.phoneNumber,
@@ -162,11 +157,9 @@ const getUserProfile = asyncHandler(async (req, res) => {
             isAdmin: user.isAdmin,
             devices: user.devices,
             lastLogin: user.lastLogin
-        });
-    } else {
-        res.status(404);
-        throw new Error('Không tìm thấy người dùng');
-    }
+        },
+        message: 'User profile retrieved successfully'
+    });
 });
 
 // @desc    Cập nhật thông tin người dùng
@@ -177,8 +170,17 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
     if (user) {
         user.userName = req.body.userName || user.userName;
-        user.phoneNumber = req.body.phoneNumber || user.phoneNumber;
         user.diaChi = req.body.diaChi || user.diaChi;
+
+        if (req.body.phoneNumber && req.body.phoneNumber !== user.phoneNumber) {
+            const existingUser = await User.findOne({ phoneNumber: req.body.phoneNumber });
+            if (existingUser) {
+                return res.status(httpStatus.BAD_REQUEST).json({
+                    message: 'Số điện thoại đã được sử dụng'
+                });
+            }
+            user.phoneNumber = req.body.phoneNumber;
+        }
 
         if (req.body.password) {
             user.password = req.body.password;
@@ -186,88 +188,24 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
         const updatedUser = await user.save();
 
-        res.json({
-            _id: updatedUser._id,
-            userName: updatedUser.userName,
-            phoneNumber: updatedUser.phoneNumber,
-            diaChi: updatedUser.diaChi,
-            isAdmin: updatedUser.isAdmin,
-            token: generateToken(updatedUser._id),
+        return res.status(httpStatus.OK).json({
+            data: {
+                _id: updatedUser._id,
+                userName: updatedUser.userName,
+                phoneNumber: updatedUser.phoneNumber,
+                diaChi: updatedUser.diaChi,
+                isAdmin: updatedUser.isAdmin,
+            },
+            message: 'User profile updated successfully'
         });
     } else {
-        res.status(404);
-        throw new Error('Không tìm thấy người dùng');
+        return res.status(httpStatus.NOT_FOUND).json({
+            message: 'Không tìm thấy người dùng'
+        });
     }
 });
 
-// @desc    Xóa thiết bị đã đăng nhập
-// @route   DELETE /api/users/devices/:deviceId
-// @access  Private
-const removeUserDevice = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id);
-
-    if (user) {
-        // Xóa thiết bị theo ID
-        const deviceIndex = req.params.deviceId;
-
-        if (deviceIndex >= 0 && deviceIndex < user.devices.length) {
-            user.devices.splice(deviceIndex, 1);
-            await user.save();
-            res.json({ message: 'Thiết bị đã được xóa' });
-        } else {
-            res.status(404);
-            throw new Error('Không tìm thấy thiết bị');
-        }
-    } else {
-        res.status(404);
-        throw new Error('Không tìm thấy người dùng');
-    }
-});
-
-// @desc    Làm mới token
-// @route   POST /api/users/refresh-token
-// @access  Private
-const refreshToken = asyncHandler(async (req, res) => {
-    const oldToken = req.headers.authorization?.split(' ')[1];
-
-    if (!oldToken) {
-        res.status(401);
-        throw new Error('Không có token, từ chối truy cập');
-    }
-
-    try {
-        const decoded = jwt.verify(oldToken, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id);
-
-        if (!user) {
-            res.status(404);
-            throw new Error('Không tìm thấy người dùng');
-        }
-
-        // Kiểm tra xem token đã bị vô hiệu hóa chưa
-        if (user.isTokenInvalid(oldToken)) {
-            res.status(401);
-            throw new Error('Token đã bị vô hiệu hóa');
-        }
-
-        // Vô hiệu hóa token cũ
-        await user.invalidateToken(oldToken);
-
-        // Tạo token mới
-        const newToken = generateToken(user._id);
-
-        // Cập nhật thời gian làm mới token
-        user.lastTokenRefresh = Date.now();
-        await user.save();
-
-        res.json({ token: newToken });
-    } catch (error) {
-        res.status(401);
-        throw new Error('Token không hợp lệ hoặc đã hết hạn');
-    }
-});
-
-// @desc    Đổi mật khẩu
+// @desc    Đổi mật khẩu người dùng
 // @route   PUT /api/users/change-password
 // @access  Private
 const changePassword = asyncHandler(async (req, res) => {
@@ -276,30 +214,116 @@ const changePassword = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id);
 
     if (!user) {
-        res.status(404);
-        throw new Error('Không tìm thấy người dùng');
+        return res.status(httpStatus.NOT_FOUND).json({
+            message: 'Không tìm thấy người dùng'
+        });
     }
 
     // Kiểm tra mật khẩu hiện tại
     const isMatch = await user.matchPassword(currentPassword);
 
     if (!isMatch) {
-        res.status(400);
-        throw new Error('Mật khẩu hiện tại không đúng');
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: 'Mật khẩu hiện tại không chính xác'
+        });
     }
 
     // Cập nhật mật khẩu mới
     user.password = newPassword;
-
-    // Vô hiệu hóa tất cả token hiện có
-    const token = req.headers.authorization?.split(' ')[1];
-    if (token) {
-        await user.invalidateToken(token);
-    }
-
     await user.save();
 
-    res.json({ message: 'Mật khẩu đã được thay đổi' });
+    return res.status(httpStatus.OK).json({
+        message: 'Đổi mật khẩu thành công'
+    });
+});
+
+// @desc    Xóa thiết bị đã đăng nhập
+// @route   DELETE /api/users/devices/:deviceId
+// @access  Private
+const removeUserDevice = asyncHandler(async (req, res) => {
+    const { deviceId } = req.params;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+        return res.status(httpStatus.NOT_FOUND).json({
+            message: 'Không tìm thấy người dùng'
+        });
+    }
+
+    // Lọc bỏ thiết bị
+    if (user.devices && user.devices.length > 0) {
+        user.devices = user.devices.filter((device, index) => index.toString() !== deviceId);
+        await user.save();
+    }
+
+    return res.status(httpStatus.OK).json({
+        message: 'Đã xóa thiết bị thành công'
+    });
+});
+
+// @desc    Làm mới token
+// @route   POST /api/users/refresh-token
+// @access  Public
+const refreshToken = asyncHandler(async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: 'Refresh token không được cung cấp'
+        });
+    }
+
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        const user = await User.findById(decoded.id);
+
+        if (!user) {
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: 'Người dùng không tồn tại'
+            });
+        }
+
+        if (user.isBlocked) {
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: 'Tài khoản đã bị khóa'
+            });
+        }
+
+        // Kiểm tra xem refresh token có bị vô hiệu hóa không
+        if (user.isTokenInvalid(refreshToken)) {
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: 'Refresh token đã bị vô hiệu hóa'
+            });
+        }
+
+        // Tạo token mới
+        const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: process.env.JWT_ACCESS_EXPIRES_IN
+        });
+
+        // Tạo refresh token mới
+        const newRefreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
+            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
+        });
+
+        // Vô hiệu hóa refresh token cũ
+        await user.invalidateToken(refreshToken);
+
+        // Cập nhật thời gian làm mới token
+        user.lastTokenRefresh = Date.now();
+        await user.save();
+
+        return res.status(httpStatus.OK).json({
+            accessToken,
+            refreshToken: newRefreshToken,
+            expiresIn: parseInt(process.env.JWT_ACCESS_EXPIRES_IN) * 1000
+        });
+
+    } catch (error) {
+        return res.status(httpStatus.UNAUTHORIZED).json({
+            message: 'Token không hợp lệ hoặc đã hết hạn'
+        });
+    }
 });
 
 // @desc    Kiểm tra số điện thoại đã tồn tại chưa
@@ -308,24 +332,222 @@ const changePassword = asyncHandler(async (req, res) => {
 const checkPhoneExists = asyncHandler(async (req, res) => {
     const { phoneNumber } = req.params;
 
-    if (!phoneNumber) {
-        res.status(400);
-        throw new Error('Vui lòng cung cấp số điện thoại để kiểm tra');
-    }
+    const userExists = await User.findOne({ phoneNumber });
 
-    const user = await User.findOne({ phoneNumber });
-
-    res.json({
-        exists: !!user,
-        message: user ? 'Số điện thoại đã tồn tại' : 'Số điện thoại chưa được đăng ký'
+    return res.status(httpStatus.OK).json({
+        exists: !!userExists
     });
 });
 
-// Generate JWT
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '30d',
-    });
+// Lấy tất cả người dùng (Admin)
+export const getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find({}).select('-password');
+
+        return res.status(200).json({
+            success: true,
+            count: users.length,
+            data: users
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách người dùng:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi, không thể lấy danh sách người dùng'
+        });
+    }
+};
+
+// Tạo người dùng mới (Admin)
+export const createUser = async (req, res) => {
+    try {
+        const { userName, phoneNumber, diaChi, password, isAdmin } = req.body;
+
+        // Kiểm tra người dùng đã tồn tại chưa
+        const userExists = await User.findOne({ userName });
+        if (userExists) {
+            return res.status(400).json({
+                success: false,
+                message: 'Tên người dùng đã tồn tại'
+            });
+        }
+
+        // Mã hóa mật khẩu
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Tạo người dùng mới
+        const newUser = await User.create({
+            userName,
+            phoneNumber,
+            diaChi,
+            password: hashedPassword,
+            isAdmin: isAdmin || false
+        });
+
+        if (newUser) {
+            // Trả về thông tin người dùng (không bao gồm mật khẩu)
+            return res.status(201).json({
+                success: true,
+                data: {
+                    _id: newUser._id,
+                    userName: newUser.userName,
+                    phoneNumber: newUser.phoneNumber,
+                    diaChi: newUser.diaChi,
+                    isAdmin: newUser.isAdmin,
+                    createdAt: newUser.createdAt
+                }
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: 'Dữ liệu người dùng không hợp lệ'
+            });
+        }
+    } catch (error) {
+        console.error('Lỗi khi tạo người dùng mới:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi, không thể tạo người dùng mới'
+        });
+    }
+};
+
+// Cập nhật thông tin người dùng (Admin)
+export const updateUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { userName, phoneNumber, diaChi, password, isAdmin } = req.body;
+
+        // Tìm người dùng
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        // Cập nhật thông tin
+        if (userName) user.userName = userName;
+        if (phoneNumber) user.phoneNumber = phoneNumber;
+        if (diaChi) user.diaChi = diaChi;
+
+        // Chỉ cập nhật mật khẩu nếu có
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(password, salt);
+        }
+
+        // Cập nhật quyền admin nếu được chỉ định
+        if (isAdmin !== undefined) {
+            user.isAdmin = isAdmin;
+        }
+
+        // Lưu thay đổi
+        const updatedUser = await user.save();
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                _id: updatedUser._id,
+                userName: updatedUser.userName,
+                phoneNumber: updatedUser.phoneNumber,
+                diaChi: updatedUser.diaChi,
+                isAdmin: updatedUser.isAdmin,
+                updatedAt: updatedUser.updatedAt
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi khi cập nhật thông tin người dùng:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi, không thể cập nhật thông tin người dùng'
+        });
+    }
+};
+
+// Khóa/mở khóa tài khoản người dùng (Admin)
+export const toggleBlockUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { isBlocked } = req.body;
+
+        // Tìm người dùng
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        // Ngăn chặn admin khóa chính mình
+        if (req.user._id.toString() === userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Bạn không thể khóa tài khoản của chính mình'
+            });
+        }
+
+        // Cập nhật trạng thái khóa
+        user.isBlocked = isBlocked;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: isBlocked ? 'Đã khóa tài khoản người dùng' : 'Đã mở khóa tài khoản người dùng',
+            data: {
+                _id: user._id,
+                userName: user.userName,
+                isBlocked: user.isBlocked
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi khi khóa/mở khóa tài khoản:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi, không thể khóa/mở khóa tài khoản'
+        });
+    }
+};
+
+// Xóa tài khoản người dùng (Admin)
+export const deleteUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        // Tìm người dùng
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        // Ngăn chặn admin xóa chính mình
+        if (req.user._id.toString() === userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Bạn không thể xóa tài khoản của chính mình'
+            });
+        }
+
+        // Xóa người dùng
+        await User.findByIdAndDelete(userId);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Đã xóa tài khoản người dùng thành công'
+        });
+    } catch (error) {
+        console.error('Lỗi khi xóa tài khoản người dùng:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi, không thể xóa tài khoản người dùng'
+        });
+    }
 };
 
 export {
@@ -334,8 +556,8 @@ export {
     logoutUser,
     getUserProfile,
     updateUserProfile,
+    changePassword,
     removeUserDevice,
     refreshToken,
-    changePassword,
     checkPhoneExists
-}; 
+};

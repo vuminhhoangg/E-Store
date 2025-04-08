@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../components/AuthContext';
 import { addressService } from '../services/addressService';
 
 // Interface cho dữ liệu địa chỉ
@@ -406,13 +406,13 @@ const RegisterPage = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                            Địa chỉ  <span className="text-red-500">*</span>
+                            Địa chỉ
                         </h3>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                             <div>
                                 <label htmlFor="province" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Tỉnh/Thành phố
+                                    Tỉnh/Thành phố <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     id="province"
@@ -431,7 +431,7 @@ const RegisterPage = () => {
 
                             <div>
                                 <label htmlFor="district" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Quận/Huyện
+                                    Quận/Huyện <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     id="district"
@@ -451,7 +451,7 @@ const RegisterPage = () => {
 
                             <div>
                                 <label htmlFor="ward" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Phường/Xã
+                                    Phường/Xã <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     id="ward"

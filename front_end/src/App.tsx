@@ -1,50 +1,103 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Header from './components/Header'
-import Footer from './components/Footer'
+import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, useNavigate } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import ProductPage from './pages/ProductPage'
 import CartPage from './pages/CartPage'
 import LoginPage from './pages/LoginPage'
-import NotFoundPage from './pages/NotFoundPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import NotFoundPage from './pages/NotFoundPage'
 import ChangePasswordPage from './pages/ChangePasswordPage'
-import ScrollToTop from './utils/ScrollToTop'
-import ProtectedRoute from './components/ProtectedRoute'
-import { AuthProvider } from './components/AuthContext'
+import { ProtectedRoute, AdminProtectedRoute } from './components/ProtectedRoute'
+import { AuthProvider, useAuth } from './components/AuthContext'
+import Layout from './components/Layout'
+import { useEffect } from 'react'
+
+// Admin pages
+import AdminDashboard from './pages/Admin/AdminDashboard'
+import UserManagement from './pages/Admin/UserManagement'
+import ProductManagement from './pages/Admin/ProductManagement'
+import OrderManagement from './pages/Admin/OrderManagement'
+import AdminLayout from './pages/Admin/AdminLayout'
+
+const AppContent = () => {
+  const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  // Store admin path only on direct access
+  useEffect(() => {
+    const isDirectAccess = performance.navigation ?
+      performance.navigation.type === 0 :
+      window.performance.getEntriesByType('navigation').some((nav: any) => nav.type === 'navigate');
+
+    if (isDirectAccess &&
+      location.pathname.startsWith('/admin') &&
+      location.pathname !== '/admin' &&
+      location.pathname !== '/admin/dashboard') {
+      sessionStorage.setItem('lastAdminPath', location.pathname);
+    }
+  }, [location.pathname]);
+
+  // Handle admin redirects
+  useEffect(() => {
+    if (isAuthenticated && user?.isAdmin === true && location.pathname === '/') {
+      const lastPath = sessionStorage.getItem('lastAdminPath');
+      const targetPath = lastPath || '/admin/dashboard';
+
+      // Use immediate navigation without timeout
+      navigate(targetPath, { replace: true });
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
+
+  return (
+    <div className="app-container">
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route path="product/:id" element={<ProductPage />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+
+          {/* Protected Routes */}
+          <Route path="cart" element={
+            <ProtectedRoute>
+              <CartPage />
+            </ProtectedRoute>
+          } />
+          <Route path="change-password" element={
+            <ProtectedRoute>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          } />
+
+          {/* 404 Page */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={
+          <AdminProtectedRoute>
+            <AdminLayout />
+          </AdminProtectedRoute>
+        }>
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="products" element={<ProductManagement />} />
+          <Route path="orders" element={<OrderManagement />} />
+        </Route>
+      </Routes>
+    </div>
+  );
+};
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <ScrollToTop />
-        <div className="flex flex-col min-h-screen">
-          <Header />
-          <main className="flex-grow pb-16 pt-6">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/product/:id" element={<ProductPage />} />
-              <Route
-                path="/cart/:id?"
-                element={
-                  <ProtectedRoute>
-                    <CartPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/change-password" element={
-                <ProtectedRoute>
-                  <ChangePasswordPage />
-                </ProtectedRoute>
-              } />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
+        <AppContent />
       </Router>
     </AuthProvider>
   )
