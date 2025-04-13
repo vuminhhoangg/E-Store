@@ -172,10 +172,16 @@ const ProductPage = () => {
                                     <span>{product.brand}</span>
                                 </div>
 
-                                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
                                     <span className="font-medium">Danh mục:</span>
                                     <span>{product.category}</span>
                                 </div>
+
+                                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                    <span className="font-medium">Thời gian bảo hành:</span>
+                                    <span>{product.warrantyPeriodMonths} tháng</span>
+                                </div>
+
                             </div>
 
                             {/* Số lượng và nút thêm vào giỏ hàng */}

@@ -11,6 +11,7 @@ export interface Product {
     numReviews: number;
     createdAt: string;
     updatedAt: string;
+    warrantyPeriodMonths: number;
     __v: number;
 }
 

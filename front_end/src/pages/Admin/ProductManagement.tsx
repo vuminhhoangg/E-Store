@@ -78,7 +78,7 @@ const ProductManagement = () => {
                 }
 
                 console.log('Gọi API lấy danh sách sản phẩm');
-                const response = await axios.get('/api/admin/products', {
+                const response = await axios.get('/api/products', {
                     headers: {
                         Authorization: `Bearer ${userInfo.accessToken}`
                     }

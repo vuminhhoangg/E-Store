@@ -97,21 +97,6 @@ const protect = asyncHandler(async (req, res, next) => {
     }
 });
 
-const admin = (req, res, next) => {
-    if (req.user && req.user.isAdmin) {
-        console.log(`[Auth] Xác thực quyền admin thành công cho người dùng ${req.user._id}`);
-        next();
-    } else {
-        console.log(`[Auth] Người dùng ${req.user?._id} không có quyền admin`);
-        res.status(403).json({
-            success: false,
-            message: 'Không được phép, chỉ admin mới có quyền truy cập'
-        });
-    }
-};
-
-export { protect, admin };
-
 // Xác thực JWT token
 export const authenticateJWT = async (req, res, next) => {
     try {
@@ -164,6 +149,23 @@ export const authenticateJWT = async (req, res, next) => {
         });
     }
 };
+
+
+const admin = [authenticateJWT, (req, res, next) => {
+    if (req.user && req.user.isAdmin) {
+        console.log(`[Auth] Xác thực quyền admin thành công cho người dùng ${req.user._id}`);
+        next();
+    } else {
+        console.log(`[Auth] Người dùng ${req.user?._id} không có quyền admin`);
+        res.status(403).json({
+            success: false,
+            message: 'Không được phép, chỉ admin mới có quyền truy cập'
+        });
+    }
+}];
+
+export { protect, admin };
+
 
 // Kiểm tra quyền Admin
 export const isAdmin = (req, res, next) => {

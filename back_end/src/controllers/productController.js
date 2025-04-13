@@ -122,7 +122,8 @@ export const createProduct = async (req, res) => {
             category,
             countInStock,
             rating,
-            numReviews
+            numReviews,
+            warrantyPeriodMonths
         } = req.body;
 
         const product = new Product({
@@ -134,7 +135,8 @@ export const createProduct = async (req, res) => {
             category,
             countInStock,
             rating,
-            numReviews
+            numReviews,
+            warrantyPeriodMonths,
         });
 
         const createdProduct = await product.save();
@@ -163,7 +165,8 @@ export const updateProduct = async (req, res) => {
             image,
             brand,
             category,
-            countInStock
+            countInStock,
+            warrantyPeriodMonths
         } = req.body;
 
         const product = await Product.findById(req.params.id);
@@ -182,10 +185,11 @@ export const updateProduct = async (req, res) => {
         product.brand = brand || product.brand;
         product.category = category || product.category;
         product.countInStock = countInStock || product.countInStock;
+        product.warrantyPeriodMonths = warrantyPeriodMonths || product.warrantyPeriodMonths;
 
         const updatedProduct = await product.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: updatedProduct
         });
