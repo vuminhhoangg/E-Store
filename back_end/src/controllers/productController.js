@@ -53,8 +53,8 @@ export const getTopProducts = asyncHandler(async (req, res) => {
 // Lấy tất cả sản phẩm
 export const getProducts = async (req, res) => {
     try {
+        const page = Number(req.query.page) || 0; // Nếu page=0, lấy tất cả sản phẩm
         const pageSize = 10;
-        const page = Number(req.query.page) || 1;
         const keyword = req.query.keyword ? {
             name: {
                 $regex: req.query.keyword,
@@ -63,15 +63,19 @@ export const getProducts = async (req, res) => {
         } : {};
 
         const count = await Product.countDocuments({ ...keyword });
-        const products = await Product.find({ ...keyword })
-            .limit(pageSize)
-            .skip(pageSize * (page - 1));
+
+        // Nếu page=0 hoặc không có tham số page, trả về tất cả sản phẩm
+        const products = page === 0
+            ? await Product.find({ ...keyword })
+            : await Product.find({ ...keyword })
+                .limit(pageSize)
+                .skip(pageSize * (page - 1));
 
         res.status(200).json({
             success: true,
             data: products,
             page,
-            pages: Math.ceil(count / pageSize),
+            pages: page === 0 ? 1 : Math.ceil(count / pageSize),
             count
         });
     } catch (error) {
@@ -136,7 +140,7 @@ export const createProduct = async (req, res) => {
             countInStock,
             rating,
             numReviews,
-            warrantyPeriodMonths,
+            warrantyPeriodMonths: warrantyPeriodMonths || 0,
         });
 
         const createdProduct = await product.save();
@@ -155,7 +159,7 @@ export const createProduct = async (req, res) => {
     }
 };
 
-// Cập nhật sản phẩm
+// // Cập nhật sản phẩm
 export const updateProduct = async (req, res) => {
     try {
         const {
@@ -185,7 +189,7 @@ export const updateProduct = async (req, res) => {
         product.brand = brand || product.brand;
         product.category = category || product.category;
         product.countInStock = countInStock || product.countInStock;
-        product.warrantyPeriodMonths = warrantyPeriodMonths || product.warrantyPeriodMonths;
+        product.warrantyPeriodMonths = warrantyPeriodMonths !== undefined ? warrantyPeriodMonths : product.warrantyPeriodMonths;
 
         const updatedProduct = await product.save();
 
@@ -296,7 +300,7 @@ export const adminGetProductById = async (req, res) => {
 // Tạo sản phẩm mới (Admin)
 export const adminCreateProduct = async (req, res) => {
     try {
-        const { name, brand, category, description, price, countInStock, image } = req.body;
+        const { name, brand, category, description, price, countInStock, image, warrantyPeriodMonths } = req.body;
 
         // Tạo sản phẩm mới
         const product = await Product.create({
@@ -307,6 +311,7 @@ export const adminCreateProduct = async (req, res) => {
             price,
             countInStock,
             image,
+            warrantyPeriodMonths: warrantyPeriodMonths || 0,
             user: req.user._id  // ID của admin tạo sản phẩm
         });
 
@@ -334,7 +339,7 @@ export const adminCreateProduct = async (req, res) => {
 export const adminUpdateProduct = async (req, res) => {
     try {
         const productId = req.params.id;
-        const { name, brand, category, description, price, countInStock, image, isActive } = req.body;
+        const { name, brand, category, description, price, countInStock, image, warrantyPeriodMonths, isActive } = req.body;
 
         // Tìm sản phẩm
         const product = await Product.findById(productId);
@@ -352,6 +357,7 @@ export const adminUpdateProduct = async (req, res) => {
         if (description !== undefined) product.description = description;
         if (price !== undefined) product.price = price;
         if (countInStock !== undefined) product.countInStock = countInStock;
+        if (warrantyPeriodMonths !== undefined) product.warrantyPeriodMonths = warrantyPeriodMonths;
         if (image) product.image = image;
         if (isActive !== undefined) product.isActive = isActive;
 

@@ -57,7 +57,7 @@ const UserManagement = () => {
 
                 console.log('Đang gửi yêu cầu lấy danh sách người dùng...');
                 // Sử dụng instance api đã được cấu hình sẵn
-                const response = await api.get('/admin/users');
+                const response = await api.get('/users');
 
                 console.log('Phản hồi từ API:', response.data);
 
@@ -94,7 +94,7 @@ const UserManagement = () => {
             const { default: api } = await import('../../services/api');
 
             console.log('Đang gửi yêu cầu xóa người dùng ID:', userId);
-            const response = await api.delete(`/admin/users/${userId}`);
+            const response = await api.delete(`/auth/delete-user/${userId}`);
             console.log('Phản hồi xóa người dùng:', response.data);
 
             // Cập nhật UI
@@ -166,7 +166,7 @@ const UserManagement = () => {
             let response;
             if (selectedUser) {
                 // Cập nhật người dùng
-                response = await api.put(`/admin/users/${selectedUser._id}`, userData);
+                response = await api.put(`/users/${selectedUser._id}`, userData);
                 console.log('Phản hồi cập nhật người dùng:', response.data);
 
                 // Cập nhật UI
@@ -183,7 +183,7 @@ const UserManagement = () => {
                 toast.success('Người dùng đã được cập nhật thành công');
             } else {
                 // Thêm người dùng mới
-                response = await api.post('/admin/users', userData);
+                response = await api.post('/auth/register', userData);
                 console.log('Phản hồi tạo người dùng mới:', response.data);
 
                 // Cập nhật UI

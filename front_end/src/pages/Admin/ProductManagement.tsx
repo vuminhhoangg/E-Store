@@ -20,6 +20,7 @@ interface Product {
     rating: number;
     createdAt: string;
     description: string;
+    warrantyPeriodMonths: number;
 }
 
 const ProductManagement = () => {
@@ -43,7 +44,8 @@ const ProductManagement = () => {
         price: 0,
         countInStock: 0,
         image: '',
-        description: ''
+        description: '',
+        warrantyPeriodMonths: 0
     });
 
     // Danh sách các danh mục sản phẩm
@@ -126,7 +128,8 @@ const ProductManagement = () => {
                 price: selectedProduct.price,
                 countInStock: selectedProduct.countInStock,
                 image: selectedProduct.image,
-                description: selectedProduct.description || ''
+                description: selectedProduct.description || '',
+                warrantyPeriodMonths: selectedProduct.warrantyPeriodMonths
             });
         } else {
             // Reset form khi thêm mới
@@ -137,7 +140,8 @@ const ProductManagement = () => {
                 price: 0,
                 countInStock: 0,
                 image: '',
-                description: ''
+                description: '',
+                warrantyPeriodMonths: 0
             });
         }
     }, [selectedProduct]);
@@ -175,21 +179,18 @@ const ProductManagement = () => {
             }
 
             // Config cho request với token
-            const config = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userInfo.accessToken}`,
-                },
-            };
-
-            // Chuẩn bị dữ liệu gửi lên server
             const productData = { ...formData };
 
             let response;
             if (selectedProduct) {
                 // Cập nhật sản phẩm
                 console.log('Cập nhật sản phẩm:', selectedProduct._id, productData);
-                response = await axios.put(`/api/admin/products/${selectedProduct._id}`, productData, config);
+                response = await axios.put(`/api/products/${selectedProduct._id}`, productData, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userInfo.accessToken}`,
+                    },
+                });
 
                 // Cập nhật UI
                 setProducts(products.map(product =>
@@ -203,7 +204,12 @@ const ProductManagement = () => {
             } else {
                 // Thêm sản phẩm mới
                 console.log('Thêm sản phẩm mới:', productData);
-                response = await axios.post('/api/admin/products', productData, config);
+                response = await axios.post('/api/products', productData, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userInfo.accessToken}`,
+                    },
+                });
 
                 if (response.data && response.data.data) {
                     // Thêm sản phẩm mới vào danh sách
@@ -254,7 +260,7 @@ const ProductManagement = () => {
 
             // Gọi API để cập nhật số lượng tồn kho
             console.log(`Cập nhật số lượng tồn kho sản phẩm ${productId} thành ${newStock}`);
-            await axios.put(`/api/admin/products/${productId}`, {
+            await axios.put(`/api/products/${productId}`, {
                 countInStock: newStock
             }, config);
 
@@ -304,7 +310,7 @@ const ProductManagement = () => {
 
                 // Gọi API để xóa sản phẩm
                 console.log(`Xóa sản phẩm ${productId}`);
-                await axios.delete(`/api/admin/products/${productId}`, config);
+                await axios.delete(`/api/products/${productId}`, config);
 
                 // Cập nhật UI
                 setProducts(products.filter(product => product._id !== productId));
@@ -690,6 +696,20 @@ const ProductManagement = () => {
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             />
                         </div>
+
+                        <div>
+                            <label htmlFor="warrantyPeriodMonths" className="block text-sm font-medium text-gray-700">Thời gian bảo hành (tháng)</label>
+                            <input
+                                type="number"
+                                id="warrantyPeriodMonths"
+                                name="warrantyPeriodMonths"
+                                min="0"
+                                required
+                                value={formData.warrantyPeriodMonths}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
                     </div>
 
                     <div>
@@ -753,6 +773,7 @@ const ProductManagement = () => {
                                                 {selectedProduct.countInStock}
                                             </span>
                                         </p>
+                                        <p><span className="font-medium">Bảo hành:</span> {selectedProduct.warrantyPeriodMonths} tháng</p>
                                         <p><span className="font-medium">Đánh giá:</span> <span className="flex items-center"><span className="text-yellow-500 mr-1">★</span> {selectedProduct.rating}/5</span></p>
                                         <p><span className="font-medium">Ngày tạo:</span> {formatDate(selectedProduct.createdAt)}</p>
                                     </div>

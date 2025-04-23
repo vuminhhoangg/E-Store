@@ -3,7 +3,7 @@ import authRoutes from './authRoutes.js';
 import userRoutes from './userRoutes.js';
 import productRoutes from './productRoutes.js';
 import cartRoutes from './cartRoutes.js';
-import adminRoutes from './adminRoutes.js';
+import orderRoutes from './orderRoutes.js';
 
 const router = express.Router();
 
@@ -29,6 +29,6 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);
 router.use('/cart', cartRoutes);
-router.use('/admin', adminRoutes);
+router.use('/orders', orderRoutes);
 
 export default router;

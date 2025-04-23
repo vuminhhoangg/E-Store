@@ -2,7 +2,10 @@ import api from "./api";
 
 export const productAPI = {
     getProducts: (keyword = '', pageNumber = '') => {
-        return api.get(`/products?keyword=${keyword}&pageNumber=${pageNumber}`);
+        return api.get(`/products?keyword=${keyword}&page=${pageNumber}`);
+    },
+    getAllProducts: () => {
+        return api.get('/products?page=0');
     },
     getProductById: (id: string) => {
         return api.get(`/products/${id}`);
@@ -16,15 +19,20 @@ export const productAPI = {
     deleteProduct: (id: string) => {
         return api.delete(`/products/${id}`);
     },
-    getTopProducts: (category = '', limit = 8) => {
-        return api.get(`/products/top?category=${category}&limit=${limit}`)
-            .then(response => {
-                console.log('API Response:', response.data);
-                return response;
-            })
-            .catch(error => {
-                console.error('Error fetching top products:', error);
-                throw error;
-            });
+    getTopProducts: async (category = '', limit = 8) => {
+        try {
+            const params = new URLSearchParams();
+            if (category) params.append('category', category);
+            if (limit) params.append('limit', limit.toString());
+
+            const url = `/products/top?${params}`;
+            console.log('Calling top products API:', url);
+
+            const response = await api.get(url);
+            return response;
+        } catch (error) {
+            console.error('Error fetching top products:', error);
+            throw error;
+        }
     }
 };

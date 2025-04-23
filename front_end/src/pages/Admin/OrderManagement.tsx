@@ -73,7 +73,7 @@ const OrderManagement = () => {
                 }
 
                 console.log('Gọi API lấy danh sách đơn hàng');
-                const response = await axios.get('/api/admin/orders', {
+                const response = await axios.get('/api/orders', {
                     headers: {
                         Authorization: `Bearer ${userInfo.accessToken}`
                     }
@@ -139,7 +139,7 @@ const OrderManagement = () => {
 
             // Gọi API để cập nhật trạng thái
             console.log(`Cập nhật trạng thái đơn hàng ${orderId} thành ${newStatus}`);
-            await axios.put(`/api/admin/orders/${orderId}/status`, { status: newStatus }, config);
+            await axios.put(`/api/orders/${orderId}/status`, { status: newStatus }, config);
 
             // Cập nhật UI
             setOrders(orders.map(order =>

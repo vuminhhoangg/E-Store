@@ -85,19 +85,19 @@ const Header = () => {
     };
 
     return (
-        <header className={`bg-white shadow-lg sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'py-2' : 'py-4'}`}>
+        <header className={`bg-white shadow-xl sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'py-2' : 'py-4'}`}>
             {/* Top bar */}
-            <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-3 hidden md:block">
+            <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-800 text-white py-3 hidden md:block">
                 <div className="container mx-auto px-4">
                     <div className="flex justify-between items-center">
                         <div className="flex space-x-6 text-sm">
-                            <span className="flex items-center transition-all duration-300 hover:scale-105">
+                            <span className="flex items-center transition-all duration-300 hover:scale-105 hover:text-blue-200">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                 </svg>
                                 <span className="font-medium">+84 123 456 789</span>
                             </span>
-                            <span className="flex items-center transition-all duration-300 hover:scale-105">
+                            <span className="flex items-center transition-all duration-300 hover:scale-105 hover:text-blue-200">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                 </svg>
@@ -105,19 +105,19 @@ const Header = () => {
                             </span>
                         </div>
                         <div className="flex space-x-6 text-sm">
-                            <Link to="/" className="flex items-center bg-white text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-all duration-300 shadow-sm">
+                            <Link to="/" className="flex items-center bg-white bg-opacity-90 text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-all duration-300 shadow-sm hover:shadow-md">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <span className="font-medium">Trợ giúp</span>
                             </Link>
-                            <Link to="/" className="flex items-center bg-white text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-all duration-300 shadow-sm">
+                            {/* <Link to="/" className="flex items-center bg-white bg-opacity-90 text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-all duration-300 shadow-sm hover:shadow-md">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                                 </svg>
                                 <span className="font-medium">Theo dõi đơn hàng</span>
-                            </Link>
-                            <Link to="/" className="flex items-center bg-white text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-all duration-300 shadow-sm">
+                            </Link> */}
+                            <Link to="/" className="flex items-center bg-white bg-opacity-90 text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-all duration-300 shadow-sm hover:shadow-md">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
                                 </svg>
@@ -134,10 +134,10 @@ const Header = () => {
                     {/* Logo */}
                     <Link to="/" className="flex-shrink-0 group">
                         <div className="flex items-center transform transition-transform duration-300 group-hover:scale-105">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600 group-hover:text-blue-700 transition-colors duration-300" viewBox="0 0 20 20" fill="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-9 w-9 text-blue-600 group-hover:text-blue-700 transition-colors duration-300" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
                             </svg>
-                            <span className="ml-2 text-2xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-300">E-STORE</span>
+                            <span className="ml-2 text-3xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-300">E-STORE</span>
                         </div>
                     </Link>
 
@@ -168,54 +168,30 @@ const Header = () => {
 
                     {/* Desktop Navigation */}
                     <nav className="hidden md:flex space-x-10">
-                        <Link to="/" className="text-gray-900 hover:text-blue-600 font-medium transition-all duration-300 relative group">
+                        <Link to="/" className="text-gray-900 hover:text-blue-600 font-medium text-base transition-all duration-300 relative group py-1">
                             Trang chủ
                             <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                         </Link>
-                        <Link to="/products" className="text-gray-900 hover:text-blue-600 font-medium transition-all duration-300 relative group">
+                        <Link to="/products" className="text-gray-900 hover:text-blue-600 font-medium text-base transition-all duration-300 relative group py-1">
                             Sản phẩm
                             <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                         </Link>
-                        <Link to="/sales" className="text-gray-900 hover:text-blue-600 font-medium transition-all duration-300 relative group">
+                        <Link to="/sales" className="text-gray-900 hover:text-blue-600 font-medium text-base transition-all duration-300 relative group py-1">
                             Khuyến mãi
                             <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                         </Link>
-                        <Link to="/news" className="text-gray-900 hover:text-blue-600 font-medium transition-all duration-300 relative group">
+                        <Link to="/news" className="text-gray-900 hover:text-blue-600 font-medium text-base transition-all duration-300 relative group py-1">
                             Tin tức
                             <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                         </Link>
-                        <Link to="/contact" className="text-gray-900 hover:text-blue-600 font-medium transition-all duration-300 relative group">
+                        <Link to="/contact" className="text-gray-900 hover:text-blue-600 font-medium text-base transition-all duration-300 relative group py-1">
                             Liên hệ
                             <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                         </Link>
                     </nav>
 
                     {/* Search & Icons */}
-                    <div className="hidden md:flex items-center space-x-6">
-                        {/* Search */}
-                        <form onSubmit={handleSearch} className="relative group">
-                            <div className="relative flex items-center">
-                                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </div>
-                                <input
-                                    type="text"
-                                    placeholder="Tìm kiếm sản phẩm..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="bg-white w-64 py-2.5 pl-10 pr-20 rounded-lg border border-gray-200 shadow-md hover:shadow-lg focus:shadow-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 group-hover:w-80 focus:w-80"
-                                />
-                                <button
-                                    type="submit"
-                                    className="absolute right-0 top-0 bottom-0 rounded-r-lg px-5 bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300 flex items-center justify-center cursor-pointer shadow-sm"
-                                >
-                                    <span className="font-medium">Tìm</span>
-                                </button>
-                            </div>
-                        </form>
-
+                    <div className="hidden md:flex items-center space-x-7">
                         {/* User */}
                         {isLoggedIn ? (
                             <div className="relative">
@@ -223,7 +199,7 @@ const Header = () => {
                                     onClick={toggleUserMenu}
                                     className="flex items-center text-gray-700 hover:text-blue-600 transition-all duration-300"
                                 >
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-center mr-2 shadow-md transform hover:scale-105 transition-all duration-300">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-center mr-2 shadow-lg transform hover:scale-105 transition-all duration-300">
                                         {user?.userName?.charAt(0).toUpperCase() || 'U'}
                                     </div>
                                     <span className="hidden lg:inline group-hover:text-blue-600">{user?.userName || 'Người dùng'}</span>
@@ -233,7 +209,7 @@ const Header = () => {
                                 </button>
 
                                 {userMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl z-50 overflow-hidden transform origin-top transition-all duration-300 border border-gray-100">
+                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-2xl z-50 overflow-hidden transform origin-top transition-all duration-300 border border-gray-100 animate-fadeIn">
                                         <div className="py-1">
                                             <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
                                                 Xin chào, <span className="font-semibold">{user?.userName}</span>
@@ -271,7 +247,7 @@ const Header = () => {
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                             </svg>
-                            <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md transform transition-transform duration-300 group-hover:scale-110">5</span>
+                            <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-lg transform transition-transform duration-300 group-hover:scale-110 animate-pulse">5</span>
                             <span className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-xs text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Yêu thích</span>
                         </Link>
 
@@ -281,7 +257,7 @@ const Header = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                             </svg>
                             {cartCount > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md transform transition-transform duration-300 group-hover:scale-110">
+                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-lg transform transition-transform duration-300 group-hover:scale-110 animate-pulse">
                                     {cartCount}
                                 </span>
                             )}
@@ -353,6 +329,45 @@ const Header = () => {
                     </Link>
                 </nav>
 
+                {/* Mobile category links */}
+                <div className="px-4 py-2 border-t border-gray-200">
+                    <div className="text-sm uppercase font-bold text-gray-500 mb-2">Danh mục nổi bật</div>
+                    <div className="divide-y divide-gray-100">
+                        <Link to="/" className="flex items-center py-2.5 text-gray-900 hover:text-red-600 transition-colors duration-300 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                            </svg>
+                            <span>Khuyến mãi hot</span>
+                        </Link>
+                        <Link to="/" className="flex items-center py-2.5 text-gray-900 hover:text-green-600 transition-colors duration-300 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Hàng mới về</span>
+                        </Link>
+                        <Link to="/" className="flex items-center py-2.5 text-gray-900 hover:text-yellow-600 transition-colors duration-300 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            <span>Bán chạy nhất</span>
+                        </Link>
+                        <Link to="/" className="flex items-center py-2.5 text-gray-900 hover:text-purple-600 transition-colors duration-300 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                            </svg>
+                            <span>Sản phẩm gợi ý</span>
+                        </Link>
+                        <Link to="/flash-sale" className="flex items-center py-2.5 text-gray-900 hover:text-red-600 transition-colors duration-300 group">
+                            <div className="flex items-center mr-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <span className="font-medium text-red-600">FLASH SALE!</span>
+                        </Link>
+                    </div>
+                </div>
+
                 {/* Mobile user account */}
                 <div className="px-4 py-2 border-t border-gray-200">
                     {isLoggedIn ? (
@@ -420,103 +435,76 @@ const Header = () => {
             </div>
 
             {/* Categories Navigation Bar */}
-            <div className="bg-gradient-to-r from-gray-100 to-gray-200 py-3 hidden md:block border-t border-gray-200 shadow-sm">
+            <div className="bg-gradient-to-r from-gray-100 via-gray-50 to-gray-200 py-3 hidden md:block border-t border-gray-200 shadow-md">
                 <div className="container mx-auto px-4">
-                    <div className="flex items-center justify-between">
-                        {/* Categories dropdown */}
-                        <div className="relative group">
-                            <button className="flex items-center bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-all duration-300 hover:from-blue-700 hover:to-indigo-800 group-hover:shadow-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 transform group-hover:rotate-180 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                </svg>
-                                Danh mục sản phẩm
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 transform group-hover:rotate-180 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
-
-                            <div className="absolute hidden group-hover:block left-0 top-full bg-white shadow-lg rounded-b-md w-60 z-50 transform origin-top transition-all duration-300 border border-gray-100 overflow-hidden">
-                                <div className="py-2">
-                                    <Link to="/" className="flex items-center px-4 py-2.5 hover:bg-blue-50 transition-colors duration-300 group/item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600 group-hover/item:text-blue-700 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
-                                        <span className="group-hover/item:translate-x-1 transform transition-transform duration-300">Điện thoại</span>
-                                    </Link>
-                                    <Link to="/" className="flex items-center px-4 py-2.5 hover:bg-blue-50 transition-colors duration-300 group/item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600 group-hover/item:text-blue-700 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                        </svg>
-                                        <span className="group-hover/item:translate-x-1 transform transition-transform duration-300">Laptop</span>
-                                    </Link>
-                                    <Link to="/" className="flex items-center px-4 py-2.5 hover:bg-blue-50 transition-colors duration-300 group/item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600 group-hover/item:text-blue-700 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
-                                        <span className="group-hover/item:translate-x-1 transform transition-transform duration-300">Máy tính bảng</span>
-                                    </Link>
-                                    <Link to="/" className="flex items-center px-4 py-2.5 hover:bg-blue-50 transition-colors duration-300 group/item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600 group-hover/item:text-blue-700 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
-                                        <span className="group-hover/item:translate-x-1 transform transition-transform duration-300">Máy tính để bàn</span>
-                                    </Link>
-                                    <Link to="/" className="flex items-center px-4 py-2.5 hover:bg-blue-50 transition-colors duration-300 group/item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600 group-hover/item:text-blue-700 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <span className="group-hover/item:translate-x-1 transform transition-transform duration-300">Đồng hồ thông minh</span>
-                                    </Link>
-                                    <Link to="/" className="flex items-center px-4 py-2.5 hover:bg-blue-50 transition-colors duration-300 group/item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600 group-hover/item:text-blue-700 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                                        </svg>
-                                        <span className="group-hover/item:translate-x-1 transform transition-transform duration-300">Tai nghe</span>
-                                    </Link>
-                                    <Link to="/" className="flex items-center px-4 py-2.5 hover:bg-blue-50 transition-colors duration-300 group/item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600 group-hover/item:text-blue-700 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        <span className="group-hover/item:translate-x-1 transform transition-transform duration-300">Máy ảnh</span>
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
-
+                    <div className="flex items-center justify-center">
                         {/* Popular categories */}
-                        <div className="flex space-x-8">
-                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group">
-                                Khuyến mãi hot
-                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
+                        <div className="flex space-x-12 justify-center">
+                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group transform hover:scale-105">
+                                <span className="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                                    </svg>
+                                    Khuyến mãi hot
+                                </span>
+                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-red-500 to-red-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                             </Link>
-                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group">
-                                Hàng mới về
-                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
+                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group transform hover:scale-105">
+                                <span className="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Hàng mới về
+                                </span>
+                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-green-500 to-green-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                             </Link>
-                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group">
-                                Bán chạy nhất
-                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
+                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group transform hover:scale-105">
+                                <span className="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                    Bán chạy nhất
+                                </span>
+                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                             </Link>
-                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group">
-                                Sản phẩm gợi ý
-                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-blue-600 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
+                            <Link to="/" className="text-gray-800 hover:text-blue-600 font-medium transition-all duration-300 relative group transform hover:scale-105">
+                                <span className="flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                    </svg>
+                                    Sản phẩm gợi ý
+                                </span>
+                                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-purple-500 to-purple-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-full"></span>
                             </Link>
-                        </div>
-
-                        {/* Flash sale countdown */}
-                        <div className="flex items-center group">
-                            <span className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-3 py-1 rounded-md mr-3 shadow-md transform transition-transform duration-300 group-hover:scale-105">FLASH SALE</span>
-                            <div className="flex space-x-1 group-hover:scale-105 transition-transform duration-300">
-                                <span className="bg-gradient-to-b from-gray-800 to-gray-900 text-white font-bold px-2 py-1 rounded-md shadow-md">06</span>
-                                <span className="text-gray-800 font-bold animate-pulse">:</span>
-                                <span className="bg-gradient-to-b from-gray-800 to-gray-900 text-white font-bold px-2 py-1 rounded-md shadow-md">12</span>
-                                <span className="text-gray-800 font-bold animate-pulse">:</span>
-                                <span className="bg-gradient-to-b from-gray-800 to-gray-900 text-white font-bold px-2 py-1 rounded-md shadow-md">03</span>
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Flash Sale Banner */}
+            {/* <div className="hidden md:block bg-gradient-to-r from-red-50 to-red-100 border-t border-b border-red-100">
+                <div className="container mx-auto px-4 py-2">
+                    <div className="flex items-center justify-center">
+                        <div className="flex items-center group animate-pulse">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            <span className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-3 py-1 rounded-md mr-3 shadow-lg transform transition-transform duration-300 group-hover:scale-105">FLASH SALE</span>
+                        </div>
+                        <span className="text-gray-700 font-medium mr-3">Kết thúc sau:</span>
+                        <div className="flex space-x-1 group-hover:scale-105 transition-transform duration-300">
+                            <span className="bg-gradient-to-b from-gray-800 to-gray-900 text-white font-bold px-2 py-1 rounded-md shadow-lg">06</span>
+                            <span className="text-gray-800 font-bold animate-ping">:</span>
+                            <span className="bg-gradient-to-b from-gray-800 to-gray-900 text-white font-bold px-2 py-1 rounded-md shadow-lg">12</span>
+                            <span className="text-gray-800 font-bold animate-ping">:</span>
+                            <span className="bg-gradient-to-b from-gray-800 to-gray-900 text-white font-bold px-2 py-1 rounded-md shadow-lg">03</span>
+                        </div>
+                        <Link to="/flash-sale" className="ml-6 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-1 rounded-md shadow-md transform hover:scale-105 transition-all duration-300 text-sm font-medium">
+                            Xem ngay
+                        </Link>
+                    </div>
+                </div>
+            </div> */}
         </header>
     )
 }

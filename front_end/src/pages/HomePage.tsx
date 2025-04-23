@@ -159,20 +159,39 @@ const HomePage = () => {
             try {
                 setLoading(true)
                 const category = activeCategory !== 'all' ? activeCategory : ''
+                console.log('Fetching top products for category:', category)
                 const response = await productAPI.getTopProducts(category)
-                console.log('Top products response:', response.data)
+                console.log('Top products response:', response)
 
-                if (response.data && response.data.data && response.data.data.products) {
-                    setProducts(response.data.data.products)
-                } else if (response.data && response.data.products) {
-                    setProducts(response.data.products)
+                // Check various possible response structures
+                if (response && response.data) {
+                    const responseData = response.data;
+                    console.log('Response data structure:', responseData)
+
+                    if (Array.isArray(responseData)) {
+                        // Direct array of products
+                        setProducts(responseData);
+                    } else if (responseData.products && Array.isArray(responseData.products)) {
+                        // { products: [...] }
+                        setProducts(responseData.products);
+                    } else if (responseData.data && Array.isArray(responseData.data)) {
+                        // { data: [...] }
+                        setProducts(responseData.data);
+                    } else if (responseData.data && responseData.data.products && Array.isArray(responseData.data.products)) {
+                        // { data: { products: [...] } }
+                        setProducts(responseData.data.products);
+                    } else {
+                        console.error('Unrecognized data structure:', responseData);
+                        setProducts([]);
+                    }
                 } else {
-                    setProducts([])
-                    console.error('Không nhận được định dạng dữ liệu sản phẩm mong đợi')
+                    console.error('No data in response');
+                    setProducts([]);
                 }
+
                 setLoading(false)
             } catch (error) {
-                console.error('Lỗi khi tải sản phẩm nổi bật:', error)
+                console.error('Error fetching featured products:', error)
                 setProducts([])
                 setLoading(false)
             }
@@ -344,8 +363,8 @@ const HomePage = () => {
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl md:text-2xl font-bold text-gray-800">
                             {activeCategory === 'all'
-                                ? 'Sản phẩm nổi bật nhất'
-                                : `${categories.find(c => c.id === activeCategory)?.name} nổi bật nhất`}
+                                ? 'Sản phẩm bán chạy nhất'
+                                : `${categories.find(c => c.id === activeCategory)?.name} bán chạy nhất`}
                         </h2>
                         <Link to="/products" className="text-blue-600 hover:text-blue-800 font-medium flex items-center group">
                             Xem tất cả
@@ -387,9 +406,11 @@ const HomePage = () => {
                                                         Hết hàng
                                                     </div>
                                                 )}
-                                                <div className="absolute top-2 left-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10">
-                                                    Bán chạy
-                                                </div>
+                                                {product.countInStock > 0 && (
+                                                    <div className="absolute top-2 left-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10">
+                                                        Bán chạy
+                                                    </div>
+                                                )}
                                             </div>
                                         </Link>
                                     </div>

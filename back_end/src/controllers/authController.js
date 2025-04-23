@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import asyncHandler from 'express-async-handler';
 import { generateTokens, verifyRefreshToken, invalidateToken } from '../utils/jwt.js';
 import { isValidObjectId } from 'mongoose';
+import httpStatus from 'http-status';
 
 const authUser = asyncHandler(async (req, res) => {
     const { phoneNumber, password } = req.body;
@@ -107,93 +108,137 @@ const authUser = asyncHandler(async (req, res) => {
     }
 });
 
+// const registerUser = asyncHandler(async (req, res) => {
+//     try {
+//         console.log('Register request received:', JSON.stringify(req.body));
+
+//         const { userName, phoneNumber, password, diaChi } = req.body;
+
+//         // Kiểm tra dữ liệu đầu vào
+//         if (!userName || !phoneNumber || !password || !diaChi) {
+//             console.log('Missing required fields:', { userName, phoneNumber, password: !!password, diaChi });
+//             res.status(400);
+//             throw new Error('Vui lòng nhập đầy đủ thông tin');
+//         }
+
+//         // Kiểm tra định dạng số điện thoại
+//         const phoneRegex = /^0\d{9}$/;
+//         if (!phoneRegex.test(phoneNumber)) {
+//             console.log('Invalid phone format:', phoneNumber);
+//             res.status(400);
+//             throw new Error('Số điện thoại không hợp lệ (phải có 10 số và bắt đầu bằng số 0)');
+//         }
+
+//         // Kiểm tra độ mạnh của mật khẩu
+//         if (password.length < 6) {
+//             console.log('Password too short');
+//             res.status(400);
+//             throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
+//         }
+
+//         const userExists = await User.findOne({ phoneNumber });
+
+//         if (userExists) {
+//             console.log('User with phone already exists:', phoneNumber);
+//             res.status(400);
+//             throw new Error('Số điện thoại đã được đăng ký');
+//         }
+
+//         try {
+//             console.log('Creating new user...');
+//             const user = await User.create({
+//                 userName,
+//                 phoneNumber,
+//                 password,
+//                 diaChi,
+//                 registeredAt: new Date(),
+//                 loginAttempts: 0
+//             });
+
+//             if (user) {
+//                 console.log('User registered successfully:', user._id);
+//                 res.status(201).json({
+//                     success: true,
+//                     message: 'Đăng ký thành công'
+//                 });
+//             } else {
+//                 console.log('User creation failed without error');
+//                 res.status(400);
+//                 throw new Error('Dữ liệu người dùng không hợp lệ');
+//             }
+//         } catch (error) {
+//             console.error('Error creating user:', error);
+
+//             // Kiểm tra lỗi E11000 duplicate key
+//             if (error.name === 'MongoServerError' && error.code === 11000) {
+//                 console.error('Duplicate key error:', error.keyValue);
+//                 // Nếu lỗi trùng lặp phoneNumber
+//                 if (error.keyPattern && error.keyPattern.phoneNumber) {
+//                     res.status(400);
+//                     throw new Error('Số điện thoại đã được đăng ký. Vui lòng sử dụng số điện thoại khác.');
+//                 }
+//                 // Trường hợp khác
+//                 else {
+//                     res.status(400);
+//                     throw new Error('Thông tin đã được đăng ký. Vui lòng kiểm tra lại.');
+//                 }
+//             }
+
+//             res.status(400);
+//             throw new Error(error.message || 'Đăng ký thất bại');
+//         }
+//     } catch (error) {
+//         console.error('Register endpoint error:', error);
+//         // Nếu res.status chưa được set, đặt mặc định là 500
+//         if (!res.statusCode || res.statusCode === 200) {
+//             res.status(500);
+//         }
+//         throw error;
+//     }
+// });
+
 const registerUser = asyncHandler(async (req, res) => {
-    try {
-        console.log('Register request received:', JSON.stringify(req.body));
+    const { userName, phoneNumber, password, diaChi } = req.body;
 
-        const { userName, phoneNumber, password, diaChi } = req.body;
+    const userExists = await User.findOne({ phoneNumber });
 
-        // Kiểm tra dữ liệu đầu vào
-        if (!userName || !phoneNumber || !password || !diaChi) {
-            console.log('Missing required fields:', { userName, phoneNumber, password: !!password, diaChi });
-            res.status(400);
-            throw new Error('Vui lòng nhập đầy đủ thông tin');
-        }
-
-        // Kiểm tra định dạng số điện thoại
-        const phoneRegex = /^0\d{9}$/;
-        if (!phoneRegex.test(phoneNumber)) {
-            console.log('Invalid phone format:', phoneNumber);
-            res.status(400);
-            throw new Error('Số điện thoại không hợp lệ (phải có 10 số và bắt đầu bằng số 0)');
-        }
-
-        // Kiểm tra độ mạnh của mật khẩu
-        if (password.length < 6) {
-            console.log('Password too short');
-            res.status(400);
-            throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
-        }
-
-        const userExists = await User.findOne({ phoneNumber });
-
-        if (userExists) {
-            console.log('User with phone already exists:', phoneNumber);
-            res.status(400);
-            throw new Error('Số điện thoại đã được đăng ký');
-        }
-
-        try {
-            console.log('Creating new user...');
-            const user = await User.create({
-                userName,
-                phoneNumber,
-                password,
-                diaChi,
-                registeredAt: new Date(),
-                loginAttempts: 0
-            });
-
-            if (user) {
-                console.log('User registered successfully:', user._id);
-                res.status(201).json({
-                    success: true,
-                    message: 'Đăng ký thành công'
-                });
-            } else {
-                console.log('User creation failed without error');
-                res.status(400);
-                throw new Error('Dữ liệu người dùng không hợp lệ');
-            }
-        } catch (error) {
-            console.error('Error creating user:', error);
-
-            // Kiểm tra lỗi E11000 duplicate key
-            if (error.name === 'MongoServerError' && error.code === 11000) {
-                console.error('Duplicate key error:', error.keyValue);
-                // Nếu lỗi trùng lặp phoneNumber
-                if (error.keyPattern && error.keyPattern.phoneNumber) {
-                    res.status(400);
-                    throw new Error('Số điện thoại đã được đăng ký. Vui lòng sử dụng số điện thoại khác.');
-                }
-                // Trường hợp khác
-                else {
-                    res.status(400);
-                    throw new Error('Thông tin đã được đăng ký. Vui lòng kiểm tra lại.');
-                }
-            }
-
-            res.status(400);
-            throw new Error(error.message || 'Đăng ký thất bại');
-        }
-    } catch (error) {
-        console.error('Register endpoint error:', error);
-        // Nếu res.status chưa được set, đặt mặc định là 500
-        if (!res.statusCode || res.statusCode === 200) {
-            res.status(500);
-        }
-        throw error;
+    if (userExists) {
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: 'Số điện thoại đã được sử dụng'
+        });
     }
+
+    const user = await User.create({
+        userName,
+        phoneNumber,
+        password,
+        diaChi,
+    });
+
+    if (user) {
+        const userAgent = req.headers['user-agent'];
+        const ipAddress = req.ip || req.connection.remoteAddress;
+
+        await user.updateDevice(userAgent, ipAddress);
+        user.lastLogin = Date.now();
+        await user.save();
+
+        return res.status(httpStatus.CREATED).json({
+            data: {
+                _id: user._id,
+                userName: user.userName,
+                phoneNumber: user.phoneNumber,
+                diaChi: user.diaChi,
+                isAdmin: user.isAdmin,
+                // token: generateToken(user._id),
+            },
+            message: 'User registered successfully'
+        });
+    }
+
+    return res.status(httpStatus.BAD_REQUEST).json({
+        message: 'Dữ liệu người dùng không hợp lệ'
+    });
 });
 
 const refreshToken = asyncHandler(async (req, res) => {

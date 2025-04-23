@@ -1,12 +1,15 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Outlet, useNavigate } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import ProductPage from './pages/ProductPage'
+import ProductsPage from './pages/ProductsPage'
 import CartPage from './pages/CartPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ChangePasswordPage from './pages/ChangePasswordPage'
+import OrderSummaryPage from './pages/OrderSummaryPage'
+import CheckoutPage from './pages/CheckoutPage'
 import { ProtectedRoute, AdminProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider, useAuth } from './components/AuthContext'
 import Layout from './components/Layout'
@@ -18,6 +21,8 @@ import UserManagement from './pages/Admin/UserManagement'
 import ProductManagement from './pages/Admin/ProductManagement'
 import OrderManagement from './pages/Admin/OrderManagement'
 import AdminLayout from './pages/Admin/AdminLayout'
+import WarrantyManagementPage from './pages/Admin/WarrantyManagementPage'
+import WarrantyClaimDetailPage from './pages/Admin/WarrantyClaimDetailPage'
 
 const AppContent = () => {
   const location = useLocation();
@@ -55,6 +60,7 @@ const AppContent = () => {
         {/* Public Routes */}
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="products" element={<ProductsPage />} />
           <Route path="product/:id" element={<ProductPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
@@ -66,9 +72,19 @@ const AppContent = () => {
               <CartPage />
             </ProtectedRoute>
           } />
+          <Route path="checkout" element={
+            <ProtectedRoute>
+              <CheckoutPage />
+            </ProtectedRoute>
+          } />
           <Route path="change-password" element={
             <ProtectedRoute>
               <ChangePasswordPage />
+            </ProtectedRoute>
+          } />
+          <Route path="order-summary" element={
+            <ProtectedRoute>
+              <OrderSummaryPage />
             </ProtectedRoute>
           } />
 
@@ -87,6 +103,8 @@ const AppContent = () => {
           <Route path="users" element={<UserManagement />} />
           <Route path="products" element={<ProductManagement />} />
           <Route path="orders" element={<OrderManagement />} />
+          <Route path="warranty" element={<WarrantyManagementPage />} />
+          <Route path="warranty/:id" element={<WarrantyClaimDetailPage />} />
         </Route>
       </Routes>
     </div>

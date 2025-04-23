@@ -5,9 +5,10 @@ import {
     createProduct,
     updateProduct,
     deleteProduct,
-    getTopProducts
+    getTopProducts,
+    adminUpdateProduct
 } from '../controllers/productController.js';
-import {protect, admin, authenticateJWT} from '../middleware/authMiddleware.js';
+import { protect, admin, authenticateJWT } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.route('/top')
 
 router.route('/:id')
     .get(getProductById)
-    .put(updateProduct)
+    .put(admin, updateProduct)
     .delete(protect, admin, deleteProduct);
 
 export default router;

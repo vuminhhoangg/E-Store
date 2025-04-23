@@ -62,6 +62,9 @@ const CartPage = () => {
             if (response && response.success) {
                 // Cập nhật state với dữ liệu mới từ server
                 setCart(response.data);
+
+                // Lưu thông tin giỏ hàng vào localStorage để các trang khác có thể sử dụng
+                localStorage.setItem('cart', JSON.stringify(response.data.cartItems));
             } else {
                 console.error('Failed to fetch cart:', response);
                 setError('Không thể lấy thông tin giỏ hàng');
@@ -93,6 +96,8 @@ const CartPage = () => {
             if (response && response.success) {
                 // Cập nhật state với dữ liệu mới từ server
                 setCart(response.data);
+                // Cập nhật localStorage
+                localStorage.setItem('cart', JSON.stringify(response.data.cartItems));
                 toast.success('Đã cập nhật số lượng sản phẩm');
             } else {
                 toast.error('Không thể cập nhật số lượng sản phẩm');
@@ -120,6 +125,8 @@ const CartPage = () => {
             if (response && response.success) {
                 // Cập nhật state với dữ liệu mới từ server
                 setCart(response.data);
+                // Cập nhật localStorage
+                localStorage.setItem('cart', JSON.stringify(response.data.cartItems));
                 toast.success('Đã xóa sản phẩm khỏi giỏ hàng');
             } else {
                 toast.error('Không thể xóa sản phẩm khỏi giỏ hàng');
@@ -450,17 +457,17 @@ const CartPage = () => {
                                         </button>
 
                                         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                                            <div className="flex items-center text-sm text-gray-600 mb-3">
-                                                <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <div className="flex items-center text-sm text-gray-600 mb-3 whitespace-nowrap overflow-hidden">
+                                                <svg className="w-4 h-4 mr-2 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                                                 </svg>
-                                                Miễn phí vận chuyển cho đơn hàng từ 500.000đ
+                                                <span className="truncate">Miễn phí vận chuyển cho đơn hàng từ 5.000.000đ</span>
                                             </div>
-                                            <div className="flex items-center text-sm text-gray-600">
-                                                <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <div className="flex items-center text-sm text-gray-600 whitespace-nowrap overflow-hidden">
+                                                <svg className="w-4 h-4 mr-2 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                                                 </svg>
-                                                Đổi trả trong vòng 7 ngày
+                                                <span className="truncate">Đổi trả trong vòng 7 ngày</span>
                                             </div>
                                         </div>
 

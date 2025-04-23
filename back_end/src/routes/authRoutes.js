@@ -1,6 +1,7 @@
 import express from 'express';
 import { authUser, registerUser, refreshToken, logout, verifyAdmin } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { deleteUser, changePassword } from '../controllers/userController.js';
 
 const router = express.Router();
 
@@ -9,6 +10,8 @@ router.post('/register', registerUser);
 router.post('/login', authUser);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', protect, logout);
+router.delete('/delete-user/:id', deleteUser);
+router.put('/change-password', protect, changePassword);
 
 // Protected routes
 router.get('/profile', protect, (req, res) => {

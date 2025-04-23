@@ -526,14 +526,6 @@ export const deleteUser = async (req, res) => {
             });
         }
 
-        // Ngăn chặn admin xóa chính mình
-        if (req.user._id.toString() === userId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Bạn không thể xóa tài khoản của chính mình'
-            });
-        }
-
         // Xóa người dùng
         await User.findByIdAndDelete(userId);
 
