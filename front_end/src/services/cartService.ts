@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface CartItem {
-    product: string;
+    product: any;
     name: string;
     image: string;
     price: number;
@@ -32,6 +32,7 @@ export const cartAPI = {
 
     // Cập nhật số lượng sản phẩm trong giỏ hàng
     updateCartItem: async (productId: string, quantity: number) => {
+        console.log(`Updating cart item with ID: ${productId} to quantity: ${quantity}`);
         const response = await api.put(`/cart/${productId}`, { quantity });
         return response.data;
     },
@@ -47,4 +48,4 @@ export const cartAPI = {
         const response = await api.delete('/cart');
         return response.data;
     }
-}; 
+};

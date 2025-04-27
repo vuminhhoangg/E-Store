@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { orderAPI } from '../services/orders';
+
 import { User } from '../utils/auth';
+import {warrantyAPI} from "../services/warranty.ts";
 
 interface CartItem {
     _id: string;
@@ -11,6 +13,11 @@ interface CartItem {
     price: number;
     quantity: number;
     warrantyPeriodMonths: number;
+    product: {
+        _id: string;
+        name: string;
+        warrantyPeriodMonths: number;
+    };
 }
 
 interface ShippingInfo {
@@ -139,41 +146,52 @@ const OrderSummaryPage = () => {
             setConfirmLoading(true);
 
             // Tạo dữ liệu đơn hàng để gửi API
-            const orderData = {
-                userId: userData._id,
-                items: cartItems.map(item => ({
-                    productId: item._id,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    warrantyPeriodMonths: item.warrantyPeriodMonths,
-                })),
-                shippingAddress: shippingInfo,
-                paymentMethod: paymentMethod,
-                itemsPrice: orderTotal,
-                shippingPrice: shippingFee,
-                totalPrice: orderTotal + shippingFee,
-                notes: shippingInfo.notes || '',
-                isPaid: false,
-                paidAt: null,
-                warrantyStartDate: null, // Sẽ được cập nhật khi admin xác nhận thanh toán
-            };
+            // const orderData = {
+            //     userId: userData._id,
+            //     items: cartItems.map(item => ({
+            //         productId: item._id,
+            //         name: item.name,
+            //         price: item.price,
+            //         quantity: item.quantity,
+            //         warrantyPeriodMonths: item.warrantyPeriodMonths,
+            //     })),
+            //     shippingAddress: shippingInfo,
+            //     paymentMethod: paymentMethod,
+            //     itemsPrice: orderTotal,
+            //     shippingPrice: shippingFee,
+            //     totalPrice: orderTotal + shippingFee,
+            //     notes: shippingInfo.notes || '',
+            //     isPaid: false,
+            //     paidAt: null,
+            //     warrantyStartDate: null, // Sẽ được cập nhật khi admin xác nhận thanh toán
+            // };
 
             // Gọi API tạo đơn hàng
-            const response = await orderAPI.createOrder(orderData);
+            //const response = await orderAPI.createOrder(orderData);
 
-            if (response.data.success) {
-                // Xóa thông tin giỏ hàng và thông tin thanh toán sau khi đặt hàng thành công
-                localStorage.removeItem('cart');
-                localStorage.removeItem('paymentMethod');
-                localStorage.removeItem('shippingInfo');
+            // if (response.data.success) {
+            //     // Xóa thông tin giỏ hàng và thông tin thanh toán sau khi đặt hàng thành công
+            //     localStorage.removeItem('cart');
+            //     localStorage.removeItem('paymentMethod');
+            //     localStorage.removeItem('shippingInfo');
+            //
+            //     // Chuyển đến trang thành công
+            //     toast.success('Đặt hàng thành công!');
+            //     navigate(`/order-success/${response.data.data._id}`);
+            // } else {
+            //     toast.error(response.data.message || 'Đặt hàng thất bại');
+            // }
+            const warrantyPromises = cartItems.map(item => {
+                const warrantyData = {
+                    productId: item.product._id,
+                    customerId: userData?._id,
+                };
+                return warrantyAPI.createWarranty(warrantyData);
+            });
 
-                // Chuyển đến trang thành công
-                toast.success('Đặt hàng thành công!');
-                navigate(`/order-success/${response.data.data._id}`);
-            } else {
-                toast.error(response.data.message || 'Đặt hàng thất bại');
-            }
+            // Wait for all warranties to be created
+            const warrantyResponses = await Promise.all(warrantyPromises);
+            console.log('Warranty responses:', warrantyResponses);
         } catch (error) {
             console.error('Lỗi khi đặt hàng:', error);
             toast.error('Đã xảy ra lỗi khi đặt hàng. Vui lòng thử lại sau.');
@@ -366,4 +384,4 @@ const OrderSummaryPage = () => {
     );
 };
 
-export default OrderSummaryPage; 
+export default OrderSummaryPage;

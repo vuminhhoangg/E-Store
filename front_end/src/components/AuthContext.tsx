@@ -294,6 +294,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('Đang gọi API đăng nhập với số điện thoại:', phoneNumber);
 
             const response = await authAPI.login(phoneNumber, password);
+            localStorage.setItem('user_info', JSON.stringify(response.data.user));
             console.log('Phản hồi từ API đăng nhập:', response.data);
 
             // Kiểm tra phản hồi từ API

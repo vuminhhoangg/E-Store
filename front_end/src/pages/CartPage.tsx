@@ -306,11 +306,11 @@ const CartPage = () => {
                                                     {/* Product Info */}
                                                     <div className="flex md:w-1/2 mb-4 md:mb-0">
                                                         <Link
-                                                            to={`/product/${item.product}`}
+                                                            to={`/product/${item.product._id}`}
                                                             className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md cursor-pointer"
                                                             onClick={(e) => {
                                                                 e.preventDefault();
-                                                                navigate(`/product/${item.product}`);
+                                                                navigate(`/product/${item.product._id}`);
                                                             }}
                                                         >
                                                             <img
@@ -321,18 +321,18 @@ const CartPage = () => {
                                                         </Link>
                                                         <div className="ml-4 flex flex-col justify-between">
                                                             <Link
-                                                                to={`/product/${item.product}`}
+                                                                to={`/product/${item.product._id}`}
                                                                 className="text-lg font-medium text-gray-800 hover:text-blue-600 transition-colors duration-300"
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
-                                                                    navigate(`/product/${item.product}`);
+                                                                    navigate(`/product/${item.product._id}`);
                                                                 }}
                                                             >
                                                                 {item.name}
                                                             </Link>
 
                                                             <button
-                                                                onClick={() => handleRemoveItem(item.product)}
+                                                                onClick={() => handleRemoveItem(item.product._id)}
                                                                 className="inline-flex items-center text-sm text-red-500 hover:text-red-700 mt-4 md:mt-auto transition-colors duration-300"
                                                             >
                                                                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -354,7 +354,7 @@ const CartPage = () => {
                                                         <span className="md:hidden text-gray-600">Số lượng:</span>
                                                         <div className="flex items-center border rounded-md overflow-hidden">
                                                             <button
-                                                                onClick={() => handleQuantityChange(item.product, item.quantity - 1)}
+                                                                onClick={() => handleQuantityChange(item.product._id, item.quantity - 1)}
                                                                 className="px-3 py-1 bg-gray-100 hover:bg-gray-200 focus:outline-none text-gray-600 transition-colors duration-300"
                                                             >
                                                                 -
@@ -363,11 +363,11 @@ const CartPage = () => {
                                                                 type="number"
                                                                 min="1"
                                                                 value={item.quantity}
-                                                                onChange={(e) => handleQuantityChange(item.product, parseInt(e.target.value) || 1)}
+                                                                onChange={(e) => handleQuantityChange(item.product._id, parseInt(e.target.value) || 1)}
                                                                 className="w-12 text-center border-x py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
                                                             />
                                                             <button
-                                                                onClick={() => handleQuantityChange(item.product, item.quantity + 1)}
+                                                                onClick={() => handleQuantityChange(item.product._id, item.quantity + 1)}
                                                                 className="px-3 py-1 bg-gray-100 hover:bg-gray-200 focus:outline-none text-gray-600 transition-colors duration-300"
                                                             >
                                                                 +
@@ -492,4 +492,4 @@ const CartPage = () => {
     )
 }
 
-export default CartPage 
+export default CartPage

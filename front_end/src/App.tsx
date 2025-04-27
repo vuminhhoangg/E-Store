@@ -23,6 +23,7 @@ import OrderManagement from './pages/Admin/OrderManagement'
 import AdminLayout from './pages/Admin/AdminLayout'
 import WarrantyManagementPage from './pages/Admin/WarrantyManagementPage'
 import WarrantyClaimDetailPage from './pages/Admin/WarrantyClaimDetailPage'
+import OrderSuccessPage from "./pages/OrderSuccessPage.tsx";
 
 const AppContent = () => {
   const location = useLocation();
@@ -87,6 +88,11 @@ const AppContent = () => {
               <OrderSummaryPage />
             </ProtectedRoute>
           } />
+            <Route path="order-success/:id" element={
+                <ProtectedRoute>
+                <OrderSuccessPage />
+                </ProtectedRoute>
+            } />
 
           {/* 404 Page */}
           <Route path="*" element={<NotFoundPage />} />

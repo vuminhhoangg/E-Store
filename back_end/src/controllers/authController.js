@@ -45,7 +45,7 @@ const authUser = asyncHandler(async (req, res) => {
         res.json({
             success: true,
             user: {
-                id: user._id,
+                _id: user._id,
                 userName: user.userName,
                 phoneNumber: user.phoneNumber,
                 diaChi: user.diaChi,
