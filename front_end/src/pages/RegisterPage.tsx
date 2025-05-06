@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from '../components/AuthContext';
 import { addressService } from '../services/addressService';
+import { toast } from 'react-toastify';
 
 // Interface cho dữ liệu địa chỉ
 interface WardData {
@@ -185,14 +186,6 @@ const RegisterPage = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Xóa thông báo lỗi cũ
-        setUserNameError('');
-        setPhoneNumberError('');
-        setPasswordError('');
-        setConfirmPasswordError('');
-        setAddressError('');
-        setError('');
-
         // Kiểm tra các trường
         let isValid = true;
 
@@ -234,29 +227,36 @@ const RegisterPage = () => {
         const wardName = wards.find(w => w.id === wardId)?.name || '';
         const diaChi = `${streetAddress}, ${wardName}, ${districtName}, ${provinceName}`;
 
+        const userData = {
+            userName,
+            phoneNumber,
+            password,
+            diaChi,
+        };
+
         setLoading(true);
 
         try {
-            // Bỏ việc kiểm tra số điện thoại bằng API riêng, để back-end xử lý
+            // Gọi API đăng ký
+            await register(userData);
 
-            await register({
-                userName,
-                phoneNumber,
-                password,
-                diaChi,
-            });
+            console.log('Đăng ký thành công, chuẩn bị chuyển hướng đến trang đăng nhập');
 
             // Hiển thị thông báo thành công
-            alert('Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.');
+            toast.success('Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.');
 
-            // Chuyển hướng tới trang đăng nhập
-            navigate('/login');
+            // Chuyển hướng đến trang đăng nhập sau khi hiển thị thông báo
+            setTimeout(() => {
+                navigate('/login?from=register');
+            }, 1000);
+
         } catch (err: any) {
-            setError(err.message);
-        } finally {
+            console.error('Lỗi khi đăng ký:', err);
+            setError(err.message || 'Không thể đăng ký tài khoản. Vui lòng thử lại sau.');
             setLoading(false);
         }
     };
+
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);

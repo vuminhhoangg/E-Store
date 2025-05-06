@@ -1,6 +1,6 @@
 // API URL cho môi trường phát triển và sản xuất
 export const API_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:5000'
+    ? 'http://localhost:8080'
     : 'https://api.yourwebsite.com';
 
 // Các cấu hình khác

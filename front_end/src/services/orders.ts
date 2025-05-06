@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { API_URL } from '../config';
+import api from './api';
 import { getAuthToken } from '../utils/auth';
 
 const headers = () => ({
@@ -22,7 +21,7 @@ interface ShippingAddress {
     district: string;
     ward: string;
     phone: string;
-    email: string;
+    notes?: string;
 }
 
 interface OrderData {
@@ -40,160 +39,108 @@ interface OrderData {
 }
 
 export const orderAPI = {
-    // Tạo đơn hàng mới
     createOrder: async (orderData: OrderData) => {
         try {
-            const response = await axios.post(
-                `${API_URL}/api/orders`,
-                orderData,
-                { headers: headers() }
-            );
+            console.log('Sending order data to API:', orderData);
+            const response = await api.post('/orders', orderData, { headers: headers() });
+            console.log('API response:', JSON.stringify(response.data, null, 2));
+
+            // Kiểm tra cấu trúc response
+            if (response.data) {
+                if (response.data.data && response.data.data._id) {
+                    console.log('Order ID from response:', response.data.data._id);
+                } else if (response.data._id) {
+                    console.log('Order ID directly from response:', response.data._id);
+                    // Chuẩn hóa dữ liệu trả về để phù hợp với cấu trúc mong muốn
+                    response.data = {
+                        success: true,
+                        data: response.data
+                    };
+                } else {
+                    console.warn('Response does not contain order ID as expected:', response.data);
+                }
+            } else {
+                console.error('Invalid response format from create order API');
+            }
+
             return response;
-        } catch (error) {
+        } catch (error: any) {
+            console.error('Error creating order:', error);
+            console.error('Error response data:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+            console.error('Error headers:', error.response?.headers);
             throw error;
         }
     },
 
-    // Lấy thông tin đơn hàng theo ID
     getOrderById: async (orderId: string) => {
         try {
-            const response = await axios.get(
-                `${API_URL}/api/orders/${orderId}`,
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
+            console.log('Gọi API lấy thông tin đơn hàng với ID:', orderId);
+            const response = await api.get(`/orders/${orderId}`, { headers: headers() });
+            console.log('Phản hồi API đơn hàng:', JSON.stringify(response.data, null, 2));
 
-    // Lấy tất cả đơn hàng của người dùng hiện tại
-    getUserOrders: async () => {
-        try {
-            const response = await axios.get(
-                `${API_URL}/api/orders/user`,
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // Cập nhật trạng thái thanh toán
-    updatePaymentStatus: async (orderId: string, paymentData: { isPaid: boolean; paymentResult?: any }) => {
-        try {
-            const response = await axios.put(
-                `${API_URL}/api/orders/${orderId}/pay`,
-                paymentData,
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // (Admin) Lấy tất cả đơn hàng
-    getAllOrders: async (page = 1, limit = 10) => {
-        try {
-            const response = await axios.get(
-                `${API_URL}/api/orders/admin?page=${page}&limit=${limit}`,
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // (Admin) Cập nhật trạng thái giao hàng
-    updateDeliveryStatus: async (orderId: string, status: string) => {
-        try {
-            const response = await axios.put(
-                `${API_URL}/api/orders/${orderId}/delivery`,
-                { status },
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // (Admin) Bắt đầu bảo hành
-    startWarranty: async (orderId: string) => {
-        try {
-            const response = await axios.put(
-                `${API_URL}/api/orders/${orderId}/warranty/start`,
-                {},
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // Lấy thông tin bảo hành của sản phẩm
-    getWarrantyInfo: async (serialNumber: string) => {
-        try {
-            const response = await axios.get(
-                `${API_URL}/api/warranty/${serialNumber}`,
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // (Admin) Tạo yêu cầu bảo hành
-    createWarrantyClaim: async (orderItemId: string, data: {
-        description: string;
-        status: string;
-        images?: string[];
-    }) => {
-        try {
-            const response = await axios.post(
-                `${API_URL}/api/warranty/claims/${orderItemId}`,
-                data,
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // (Admin) Cập nhật trạng thái bảo hành
-    updateWarrantyStatus: async (claimId: string, status: string, notes?: string) => {
-        try {
-            const response = await axios.put(
-                `${API_URL}/api/warranty/claims/${claimId}`,
-                { status, notes },
-                { headers: headers() }
-            );
-            return response;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    // (Admin) Lấy tất cả yêu cầu bảo hành
-    getAllWarrantyClaims: async (page = 1, limit = 10, status?: string) => {
-        try {
-            let url = `${API_URL}/api/warranty/claims?page=${page}&limit=${limit}`;
-            if (status) {
-                url += `&status=${status}`;
+            // Kiểm tra cấu trúc phản hồi
+            if (response.data && (response.data.data || (response.data.success && response.data.data))) {
+                console.log('Tìm thấy thông tin đơn hàng:', response.data.data ? 'OK' : 'Không có dữ liệu');
+            } else {
+                console.warn('Cấu trúc phản hồi API đơn hàng không như mong đợi:', response.data);
             }
-            const response = await axios.get(
-                url,
-                { headers: headers() }
-            );
+
             return response;
-        } catch (error) {
+        } catch (error: any) {
+            console.error('Lỗi khi lấy thông tin đơn hàng:', error);
+            console.error('Chi tiết lỗi:', error.response?.data);
+            console.error('Mã lỗi:', error.response?.status);
             throw error;
         }
     },
-}; 
+
+    getUserOrders: async () => {
+        const response = await api.get('/orders/user', { headers: headers() });
+        return response.data;
+    },
+
+    updatePaymentStatus: async (orderId: string, paymentData: { isPaid: boolean; paymentResult?: any }) => {
+        const response = await api.put(`/orders/${orderId}/pay`, paymentData, { headers: headers() });
+        return response.data;
+    },
+
+    getAllOrders: async (page = 1, limit = 10) => {
+        const response = await api.get(`/orders/admin?page=${page}&limit=${limit}`, { headers: headers() });
+        return response.data;
+    },
+
+    updateDeliveryStatus: async (orderId: string, status: string) => {
+        const response = await api.put(`/orders/${orderId}/delivery`, { status }, { headers: headers() });
+        return response.data;
+    },
+
+    startWarranty: async (orderId: string) => {
+        const response = await api.put(`/orders/${orderId}/warranty/start`, {}, { headers: headers() });
+        return response.data;
+    },
+
+    getWarrantyInfo: async (serialNumber: string) => {
+        const response = await api.get(`/warranty/${serialNumber}`, { headers: headers() });
+        return response.data;
+    },
+
+    createWarrantyClaim: async (orderItemId: string, data: { description: string; status: string; images?: string[] }) => {
+        const response = await api.post(`/warranty/claims/${orderItemId}`, data, { headers: headers() });
+        return response.data;
+    },
+
+    updateWarrantyStatus: async (claimId: string, status: string, notes?: string) => {
+        const response = await api.put(`/warranty/claims/${claimId}`, { status, notes }, { headers: headers() });
+        return response.data;
+    },
+
+    getAllWarrantyClaims: async (page = 1, limit = 10, status?: string) => {
+        let url = `/warranty/claims?page=${page}&limit=${limit}`;
+        if (status) {
+            url += `&status=${status}`;
+        }
+        const response = await api.get(url, { headers: headers() });
+        return response.data;
+    },
+}

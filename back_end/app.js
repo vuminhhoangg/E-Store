@@ -31,6 +31,41 @@ app.use(express.urlencoded({ extended: true }));
 // Logging middleware
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+
+    // Log request body nếu có
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+        console.log('Request Body:', JSON.stringify(req.body, null, 2));
+    }
+
+    // Capture original response methods
+    const originalSend = res.send;
+    const originalJson = res.json;
+
+    // Override response methods to log
+    res.send = function (body) {
+        console.log(`Response for ${req.method} ${req.url} - Status: ${res.statusCode}`);
+        if (body) {
+            try {
+                console.log('Response Body:', typeof body === 'string' ? body : JSON.stringify(body, null, 2));
+            } catch (error) {
+                console.log('Response Body: [Cannot stringify response]');
+            }
+        }
+        return originalSend.apply(this, arguments);
+    };
+
+    res.json = function (body) {
+        console.log(`Response for ${req.method} ${req.url} - Status: ${res.statusCode}`);
+        if (body) {
+            try {
+                console.log('Response Body:', JSON.stringify(body, null, 2));
+            } catch (error) {
+                console.log('Response Body: [Cannot stringify response]');
+            }
+        }
+        return originalJson.apply(this, arguments);
+    };
+
     next();
 });
 

@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { orderAPI } from '../services/orders';
 
 import { User } from '../utils/auth';
-import {warrantyAPI} from "../services/warranty.ts";
+import { warrantyAPI } from "../services/warranty.ts";
 
 interface CartItem {
     _id: string;
@@ -27,7 +27,6 @@ interface ShippingInfo {
     district: string;
     ward: string;
     phone: string;
-    email: string;
     notes?: string;
 }
 
@@ -97,6 +96,13 @@ const OrderSummaryPage = () => {
                     0
                 );
                 setOrderTotal(total);
+
+                // Tính phí vận chuyển
+                if (total >= 5000000) {
+                    setShippingFee(0); // Miễn phí vận chuyển cho đơn hàng từ 5 triệu trở lên
+                } else {
+                    setShippingFee(30000); // 30.000đ phí vận chuyển cho đơn hàng dưới 5 triệu
+                }
             } catch (error) {
                 console.error('Lỗi khi xử lý giỏ hàng:', error);
                 toast.error('Đã xảy ra lỗi khi tải giỏ hàng');
@@ -146,41 +152,32 @@ const OrderSummaryPage = () => {
             setConfirmLoading(true);
 
             // Tạo dữ liệu đơn hàng để gửi API
-            // const orderData = {
-            //     userId: userData._id,
-            //     items: cartItems.map(item => ({
-            //         productId: item._id,
-            //         name: item.name,
-            //         price: item.price,
-            //         quantity: item.quantity,
-            //         warrantyPeriodMonths: item.warrantyPeriodMonths,
-            //     })),
-            //     shippingAddress: shippingInfo,
-            //     paymentMethod: paymentMethod,
-            //     itemsPrice: orderTotal,
-            //     shippingPrice: shippingFee,
-            //     totalPrice: orderTotal + shippingFee,
-            //     notes: shippingInfo.notes || '',
-            //     isPaid: false,
-            //     paidAt: null,
-            //     warrantyStartDate: null, // Sẽ được cập nhật khi admin xác nhận thanh toán
-            // };
+            const orderData = {
+                userId: userData._id,
+                items: cartItems.map(item => ({
+                    productId: item.product._id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    warrantyPeriodMonths: item.warrantyPeriodMonths,
+                })),
+                shippingAddress: shippingInfo,
+                paymentMethod: paymentMethod,
+                itemsPrice: orderTotal,
+                shippingPrice: shippingFee,
+                totalPrice: orderTotal + shippingFee,
+                notes: shippingInfo.notes || '',
+                isPaid: false,
+                paidAt: null,
+                warrantyStartDate: null, // Sẽ được cập nhật khi admin xác nhận thanh toán
+            };
 
             // Gọi API tạo đơn hàng
-            //const response = await orderAPI.createOrder(orderData);
+            console.log('Đang gửi dữ liệu đặt hàng:', orderData);
+            const response = await orderAPI.createOrder(orderData);
+            console.log('Phản hồi từ API tạo đơn hàng:', response);
 
-            // if (response.data.success) {
-            //     // Xóa thông tin giỏ hàng và thông tin thanh toán sau khi đặt hàng thành công
-            //     localStorage.removeItem('cart');
-            //     localStorage.removeItem('paymentMethod');
-            //     localStorage.removeItem('shippingInfo');
-            //
-            //     // Chuyển đến trang thành công
-            //     toast.success('Đặt hàng thành công!');
-            //     navigate(`/order-success/${response.data.data._id}`);
-            // } else {
-            //     toast.error(response.data.message || 'Đặt hàng thất bại');
-            // }
+            // Tạo thông tin bảo hành cho các sản phẩm
             const warrantyPromises = cartItems.map(item => {
                 const warrantyData = {
                     productId: item.product._id,
@@ -189,9 +186,43 @@ const OrderSummaryPage = () => {
                 return warrantyAPI.createWarranty(warrantyData);
             });
 
-            // Wait for all warranties to be created
-            const warrantyResponses = await Promise.all(warrantyPromises);
-            console.log('Warranty responses:', warrantyResponses);
+            // Chờ tất cả các warranty được tạo
+            await Promise.all(warrantyPromises);
+
+            // Xóa thông tin giỏ hàng và thông tin thanh toán sau khi đặt hàng thành công
+            localStorage.removeItem('cart');
+            localStorage.removeItem('paymentMethod');
+            localStorage.removeItem('shippingInfo');
+
+            // Hiển thị thông báo và chuyển đến trang thành công
+            toast.success('Đặt hàng thành công!');
+
+            // Kiểm tra cấu trúc response và điều hướng tương ứng
+            console.log('Kiểm tra phản hồi API:',
+                'response =', Boolean(response),
+                'response.data =', Boolean(response?.data),
+                'response.data.data =', Boolean(response?.data?.data),
+                'order ID =', response?.data?.data?._id || response?.data?._id);
+
+            // Lấy ID đơn hàng từ phản hồi
+            let orderId = null;
+            if (response && response.data) {
+                if (response.data.data && response.data.data._id) {
+                    orderId = response.data.data._id;
+                } else if (response.data._id) {
+                    orderId = response.data._id;
+                }
+            }
+
+            if (orderId) {
+                // Nếu có ID đơn hàng, chuyển đến trang Order Success với ID
+                console.log('Chuyển hướng đến /order-success/' + orderId);
+                navigate(`/order-success/${orderId}`);
+            } else {
+                // Nếu không có ID, vẫn chuyển đến trang Order Success không có ID
+                console.log('Không tìm thấy ID đơn hàng, chuyển hướng đến /order-success');
+                navigate('/order-success');
+            }
         } catch (error) {
             console.error('Lỗi khi đặt hàng:', error);
             toast.error('Đã xảy ra lỗi khi đặt hàng. Vui lòng thử lại sau.');
@@ -304,10 +335,6 @@ const OrderSummaryPage = () => {
                                             <span className="font-medium">{shippingInfo.phone}</span>
                                         </p>
                                         <p className="flex justify-between">
-                                            <span className="text-gray-600">Email:</span>
-                                            <span className="font-medium">{shippingInfo.email}</span>
-                                        </p>
-                                        <p className="flex justify-between">
                                             <span className="text-gray-600">Địa chỉ:</span>
                                             <span className="font-medium text-right">{shippingInfo.address}, {shippingInfo.ward}, {shippingInfo.district}, {shippingInfo.city}</span>
                                         </p>
@@ -338,7 +365,12 @@ const OrderSummaryPage = () => {
                                     </p>
                                     <p className="flex justify-between">
                                         <span className="text-gray-600">Phí vận chuyển:</span>
-                                        <span className="font-medium">{formatPrice(shippingFee)}</span>
+                                        <span className="font-medium">
+                                            {shippingFee === 0
+                                                ? <span className="text-green-600">Miễn phí</span>
+                                                : formatPrice(shippingFee)
+                                            }
+                                        </span>
                                     </p>
                                     <p className="flex justify-between text-lg font-medium border-t pt-2 mt-2">
                                         <span className="text-gray-800">Tổng cộng:</span>

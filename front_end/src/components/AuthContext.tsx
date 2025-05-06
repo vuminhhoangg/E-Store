@@ -15,6 +15,8 @@ interface UserInfo {
     accessToken: string;
     refreshToken: string;
     expiresAt: number;
+    lastActivityUpdate?: number; // Dấu ? để biểu thị optional field
+    [key: string]: any; // Nếu cần cho các trường dynamic khác
 }
 
 interface AuthContextType {
@@ -29,7 +31,7 @@ interface AuthContextType {
     getUserProfile: () => Promise<any>;
     changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
     currentUser?: User | null;
-    register: (userData: any) => Promise<void>;
+    register: (userData: any) => Promise<any>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,39 +53,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [adminVerified, setAdminVerified] = useState(false);
 
     // Hàm lấy thông tin người dùng từ storage
+    // Sử dụng biến ngoài để lưu trữ tạm
+    let cachedUserInfo: UserInfo | null = null;
+    let lastFetchTime = 0;
+
     const getUserInfoFromStorage = (): UserInfo | null => {
         try {
+            // Kiểm tra cache trước (hiệu lực trong 5 giây)
+            const now = Date.now();
+            if (cachedUserInfo && now - lastFetchTime < 5000) {
+                return cachedUserInfo;
+            }
+
             // Kiểm tra cả localStorage và sessionStorage
             const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
             if (!userInfoStr) {
-                console.log('[AuthContext] getUserInfoFromStorage: No user info found in storage');
+                console.log('[AuthContext] No user info found in storage');
                 return null;
             }
 
             const userInfo = JSON.parse(userInfoStr) as UserInfo;
-            console.log('[AuthContext] getUserInfoFromStorage: User data loaded from storage:', {
-                userId: userInfo.user?.id,
-                userName: userInfo.user?.userName,
-                isAdmin: userInfo.user?.isAdmin !== undefined ? userInfo.user.isAdmin : 'UNDEFINED',
-                hasTokens: !!userInfo.accessToken && !!userInfo.refreshToken
-            });
 
             // Kiểm tra tính hợp lệ của dữ liệu
             if (!userInfo.user || !userInfo.accessToken || !userInfo.refreshToken || !userInfo.expiresAt) {
-                console.warn('[AuthContext] Dữ liệu người dùng không hợp lệ, đăng xuất');
+                console.warn('[AuthContext] Invalid user data, logging out');
                 logout();
                 return null;
             }
 
-            // Ensure isAdmin is defined
+            // Đảm bảo isAdmin có giá trị
             if (userInfo.user.isAdmin === undefined) {
-                console.warn('[AuthContext] isAdmin property is undefined, setting default value to false');
                 userInfo.user.isAdmin = false;
             }
 
+            // Cập nhật cache
+            cachedUserInfo = userInfo;
+            lastFetchTime = now;
+
             return userInfo;
         } catch (error) {
-            console.error('[AuthContext] Error parsing user info from storage:', error);
+            console.error('[AuthContext] Error parsing user info:', error);
             logout();
             return null;
         }
@@ -146,12 +155,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Kiểm tra trạng thái đăng nhập khi component mount
     useEffect(() => {
+        let isMounted = true;
+        let intervalId: number;
+
         const checkAuthStatus = async () => {
             const userInfo = getUserInfoFromStorage();
             if (!userInfo || !userInfo.user) {
                 console.log('Không tìm thấy thông tin đăng nhập trong storage');
                 return;
             }
+
+            // Nếu đã đăng nhập rồi thì không cần kiểm tra lại
+            if (isLoggedIn) return;
 
             console.log('Tìm thấy thông tin đăng nhập:', {
                 userId: userInfo.user.id,
@@ -162,8 +177,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 expiresIn: Math.floor((userInfo.expiresAt - Date.now()) / 1000 / 60) + ' phút'
             });
 
-            // Nếu chưa đăng nhập và có thông tin user, thiết lập trạng thái đăng nhập
-            if (!isLoggedIn && userInfo.user) {
+            // Thiết lập trạng thái đăng nhập
+            if (isMounted) {
                 setUser(userInfo.user);
                 setIsLoggedIn(true);
                 console.log('Khôi phục trạng thái đăng nhập từ storage:', {
@@ -172,82 +187,61 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 });
             }
 
-            // Xử lý token hết hạn một cách linh hoạt hơn
+            // Kiểm tra token hết hạn
             const timeToExpire = userInfo.expiresAt - Date.now();
-
-            // Nếu token đã hết hạn hoặc sắp hết hạn, thử làm mới
-            if (timeToExpire < 5 * 60 * 1000) { // Giảm threshold xuống 5 phút
+            if (timeToExpire < 5 * 60 * 1000) {
                 console.log('Token sắp hết hạn hoặc đã hết hạn, thử làm mới token...');
                 try {
                     const refreshSuccess = await handleTokenRefresh();
-                    if (!refreshSuccess) {
-                        console.log('Làm mới token thất bại, tiếp tục với token hiện tại nếu còn hạn');
-                        // Chỉ logout nếu token thực sự đã hết hạn
-                        if (timeToExpire <= 0) {
-                            console.warn('Token đã hết hạn và không thể làm mới, đăng xuất');
-                            logout();
-                            return;
-                        }
-                    } else {
-                        console.log('Làm mới token thành công');
+                    if (!refreshSuccess && timeToExpire <= 0) {
+                        console.warn('Token đã hết hạn và không thể làm mới, đăng xuất');
+                        if (isMounted) logout();
+                        return;
                     }
                 } catch (error) {
                     console.error('Lỗi khi làm mới token:', error);
-                    // Không logout ngay, chỉ nếu token thực sự đã hết hạn
-                    if (timeToExpire <= 0) {
+                    if (timeToExpire <= 0 && isMounted) {
                         console.warn('Token đã hết hạn và refresh gặp lỗi, đăng xuất');
                         logout();
                         return;
                     }
                 }
             }
-
-            // Kiểm tra thời gian không hoạt động một cách khoan dung hơn
-            const inactiveTime = Date.now() - lastActivity;
-            const isRemembered = localStorage.getItem('userInfo') !== null;
-            const maxInactiveTime = isRemembered ? REMEMBER_TIMEOUT : SESSION_TIMEOUT;
-
-            // Tăng thời gian dung sai thêm 5 phút
-            if (inactiveTime > maxInactiveTime + 5 * 60 * 1000) {
-                console.log('Phiên đăng nhập không hoạt động quá lâu, đăng xuất');
-                logout();
-                return;
-            }
-
-            // Cập nhật thời gian hoạt động
-            setLastActivity(Date.now());
         };
 
-        // Chạy ngay lập tức khi component mount
-        checkAuthStatus();
+        // Chỉ chạy kiểm tra nếu chưa đăng nhập
+        if (!isLoggedIn) {
+            checkAuthStatus();
+        }
 
-        // Kiểm tra phiên đăng nhập định kỳ với tần suất thấp hơn để tránh quá nhiều request
-        const intervalId = setInterval(checkAuthStatus, 5 * 60 * 1000); // Kiểm tra 5 phút một lần
+        // Thiết lập interval sau khi kiểm tra ban đầu
+        intervalId = setInterval(() => {
+            const userInfo = getUserInfoFromStorage();
+            if (!userInfo) return;
+
+            const timeToExpire = userInfo.expiresAt - Date.now();
+            if (timeToExpire < 5 * 60 * 1000) {
+                handleTokenRefresh().catch(console.error);
+            }
+        }, 5 * 60 * 1000); // 5 phút
 
         // Theo dõi hoạt động người dùng
         const updateActivity = () => {
             const now = Date.now();
-            // Chỉ cập nhật nếu đã trôi qua ít nhất 1 phút kể từ lần cuối
-            if (now - lastActivity > 60 * 1000) {
+            if (now - lastActivity > 60 * 1000 && isMounted) {
                 setLastActivity(now);
             }
         }
 
-        window.addEventListener('click', updateActivity);
-        window.addEventListener('keydown', updateActivity);
-        window.addEventListener('mousemove', updateActivity);
-        window.addEventListener('touchstart', updateActivity);
-        window.addEventListener('scroll', updateActivity);
+        const activityEvents = ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'];
+        activityEvents.forEach(event => window.addEventListener(event, updateActivity));
 
         return () => {
+            isMounted = false;
             clearInterval(intervalId);
-            window.removeEventListener('click', updateActivity);
-            window.removeEventListener('keydown', updateActivity);
-            window.removeEventListener('mousemove', updateActivity);
-            window.removeEventListener('touchstart', updateActivity);
-            window.removeEventListener('scroll', updateActivity);
+            activityEvents.forEach(event => window.removeEventListener(event, updateActivity));
         };
-    }, [lastActivity, refreshRetries, isLoggedIn]);
+    }, [lastActivity, refreshRetries, isLoggedIn]); // Thêm isLoggedIn vào dependencies
 
     // Làm mới phiên đăng nhập
     const refreshSession = async () => {
@@ -255,33 +249,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const userInfo = getUserInfoFromStorage();
             if (!userInfo) return;
 
-            // Cập nhật thời gian hoạt động
-            setLastActivity(Date.now());
-            console.log('Cập nhật thời gian hoạt động: ', new Date().toLocaleString());
+            const now = Date.now();
+            const isRemembered = localStorage.getItem('userInfo') !== null;
+            const sessionTimeout = isRemembered ? REMEMBER_TIMEOUT : SESSION_TIMEOUT;
 
-            // Nếu token sắp hết hạn (còn dưới 5 phút), thử làm mới token
-            const timeToExpire = userInfo.expiresAt - Date.now();
-            if (timeToExpire < 5 * 60 * 1000) {
-                console.log('Token sắp hết hạn, thử làm mới token...');
-                await handleTokenRefresh();
-                return;
+            // Kiểm tra thời gian từ lần cập nhật cuối
+            const shouldUpdateActivity =
+                !userInfo.lastActivityUpdate ||
+                (now - userInfo.lastActivityUpdate) > 60 * 1000;
+
+            // Chỉ cập nhật khi cần thiết
+            if (shouldUpdateActivity) {
+                const updatedUserInfo = {
+                    ...userInfo,
+                    lastActivityUpdate: now,
+                    expiresAt: now + sessionTimeout
+                };
+
+                saveUserInfoToStorage(updatedUserInfo, isRemembered);
+                console.log('Session updated at:', new Date(now).toLocaleString());
             }
 
-            const isRemembered = localStorage.getItem('userInfo') !== null;
-
-            // Cập nhật thời gian hết hạn
-            const newExpiresAt = Date.now() + (isRemembered ? REMEMBER_TIMEOUT : SESSION_TIMEOUT);
-
-            const updatedUserInfo = {
-                ...userInfo,
-                expiresAt: newExpiresAt
-            };
-
-            saveUserInfoToStorage(updatedUserInfo, isRemembered);
-
-            console.log('Session refreshed, new expiry:', new Date(newExpiresAt).toLocaleString());
+            // Xử lý refresh token riêng biệt
+            if (userInfo.expiresAt - now < 5 * 60 * 1000) {
+                console.log('Refreshing token...');
+                await handleTokenRefresh();
+            }
         } catch (error) {
-            console.error('Error refreshing session:', error);
+            console.error('Session refresh error:', error);
         }
     };
 
@@ -442,26 +437,50 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     // Hàm đăng ký người dùng mới
-
     const register = async (userData: any) => {
         try {
-            console.log('Registering new user:', userData);
+            console.log('Đang đăng ký người dùng mới:', userData);
 
             const response = await authAPI.register(userData);
 
-            console.log('Registration response:', response.data);
+            // Kiểm tra phản hồi từ API
+            console.log('Phản hồi đăng ký:', response.data);
 
-            if (response.data.success) {
-                console.log('User registered successfully');
-                return; // Chỉ trả về void, không trả về data
+            // Xử lý khi đăng ký thành công
+            if (response.data && response.data.message === 'User registered successfully') {
+                console.log('Đăng ký người dùng thành công');
+                return response.data; // Trả về dữ liệu để RegisterPage xử lý
             } else {
-                throw new Error(response.data.message || 'Registration failed');
+                const errorMessage = (response.data && response.data.message)
+                    ? response.data.message
+                    : 'Đăng ký không thành công. Vui lòng thử lại.';
+                console.error('Đăng ký thất bại với thông báo:', errorMessage);
+                throw new Error(errorMessage);
             }
         } catch (error: any) {
-            console.error('Registration error:', error.response?.data || error.message);
-            throw error;
+            console.error('Chi tiết lỗi khi đăng ký:', error);
+
+            // Kiểm tra lỗi phản hồi từ API
+            if (error.response) {
+                console.error('Mã lỗi phản hồi:', error.response.status);
+                console.error('Dữ liệu lỗi phản hồi:', error.response.data);
+
+                if (error.response.data && error.response.data.message) {
+                    throw new Error(error.response.data.message);
+                }
+            }
+
+            // Nếu là lỗi từ các bước xử lý trên
+            if (error.message) {
+                throw error;
+            }
+
+            // Lỗi chung
+            throw new Error('Đăng ký không thành công. Vui lòng thử lại sau.');
         }
     };
+
+
 
     // Phương thức xác thực quyền admin một lần duy nhất
     const verifyAdminOnce = async (): Promise<boolean> => {

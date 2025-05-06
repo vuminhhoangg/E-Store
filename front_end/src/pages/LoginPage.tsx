@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { toast } from 'react-toastify'
 
 const LoginPage = () => {
     const [phoneNumber, setPhoneNumber] = useState('')
@@ -22,6 +23,19 @@ const LoginPage = () => {
     }
 
     const from = (location.state as any)?.from?.pathname || '/'
+
+    // Kiểm tra xem có đến từ trang đăng ký thành công không
+    useEffect(() => {
+        // Lấy search params từ URL
+        const searchParams = new URLSearchParams(location.search);
+        const fromRegister = searchParams.get('from') === 'register';
+
+        // Không hiển thị thông báo ở đây nữa vì đã hiển thị ở trang đăng ký
+        // Đoạn mã được giữ lại cho mục đích mở rộng trong tương lai
+        if (fromRegister) {
+            console.log('Chuyển hướng từ trang đăng ký thành công');
+        }
+    }, [location]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()

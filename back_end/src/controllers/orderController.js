@@ -1,8 +1,102 @@
 import Order from '../models/Order.js';
 
+// Tạo đơn hàng mới
+export const createOrder = async (req, res) => {
+    try {
+        const {
+            userId,
+            items,
+            shippingAddress,
+            paymentMethod,
+            itemsPrice,
+            shippingPrice,
+            totalPrice,
+            notes,
+            isPaid,
+            paidAt,
+            warrantyStartDate
+        } = req.body;
+
+        console.log('Received order data:', JSON.stringify(req.body, null, 2));
+
+        // Kiểm tra dữ liệu đầu vào
+        if (!items || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Không có sản phẩm trong đơn hàng'
+            });
+        }
+
+        // Tạo đơn hàng mới
+        const order = new Order({
+            userId, // Đây là ObjectId của người dùng
+            items: items.map(item => ({
+                productId: item.productId, // Đây là ObjectId của sản phẩm
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                warrantyPeriodMonths: item.warrantyPeriodMonths || 0,
+                image: item.image // Thêm trường image nếu có
+            })),
+            shippingAddress,
+            paymentMethod,
+            itemsPrice,
+            shippingPrice,
+            totalPrice,
+            notes: notes || '',
+            isPaid: isPaid || false,
+            paidAt: paidAt || null,
+            warrantyStartDate: warrantyStartDate || null,
+            status: 'pending'
+        });
+
+        console.log('Created order object:', order);
+
+        // Lưu đơn hàng
+        const createdOrder = await order.save();
+        console.log('Saved order:', createdOrder);
+        console.log('Order ID for response:', createdOrder._id);
+        console.log('Order structure for response:', {
+            _id: createdOrder._id,
+            userId: createdOrder.userId,
+            items: createdOrder.items.length,
+            totalPrice: createdOrder.totalPrice,
+            status: createdOrder.status
+        });
+
+        // Chuẩn bị dữ liệu phản hồi
+        const responseData = {
+            success: true,
+            message: 'Tạo đơn hàng thành công',
+            data: createdOrder
+        };
+
+        console.log('Response structure:', {
+            success: responseData.success,
+            message: responseData.message,
+            data: {
+                _id: responseData.data._id,
+                hasId: Boolean(responseData.data._id)
+            }
+        });
+
+        return res.status(201).json(responseData);
+    } catch (error) {
+        console.error('Lỗi khi tạo đơn hàng:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi, không thể tạo đơn hàng',
+            error: error.message
+        });
+    }
+};
+
 // Lấy tất cả đơn hàng (Admin)
 export const getAllOrders = async (req, res) => {
     try {
+        console.log('[OrderController] Đang lấy danh sách đơn hàng, params:', req.query);
+        console.log('[OrderController] User yêu cầu:', req.user._id, 'isAdmin:', req.user.isAdmin);
+
         // Lấy các tham số truy vấn
         const { status, fromDate, toDate, page = 1, limit = 10 } = req.query;
 
@@ -28,35 +122,82 @@ export const getAllOrders = async (req, res) => {
             }
         }
 
+        console.log('[OrderController] Query điều kiện:', JSON.stringify(query));
+
         // Tính toán phân trang
         const pageNum = Number(page);
         const pageSize = Number(limit);
         const skip = (pageNum - 1) * pageSize;
 
+        console.log(`[OrderController] Phân trang: page=${pageNum}, limit=${pageSize}, skip=${skip}`);
+
         // Thực hiện truy vấn
-        const orders = await Order.find(query)
+        const ordersQuery = Order.find(query)
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(pageSize)
-            .populate('user', 'userName phoneNumber email');
+            .limit(pageSize);
+
+        // Thử populate theo userId
+        try {
+            ordersQuery.populate('userId', 'userName phoneNumber email');
+        } catch (populateError) {
+            console.error('[OrderController] Lỗi khi populate userId:', populateError);
+        }
+
+        const orders = await ordersQuery;
+        console.log(`[OrderController] Đã tìm thấy ${orders.length} đơn hàng`);
+
+        // Chuyển đổi dữ liệu để tương thích với client
+        const transformedOrders = orders.map(order => {
+            // Lấy thông tin user từ userId (nếu đã populate) hoặc giá trị mặc định
+            const userName = order.userId && typeof order.userId === 'object' && order.userId.userName
+                ? order.userId.userName
+                : 'Không xác định';
+
+            // Tạo địa chỉ giao hàng từ thông tin shippingAddress
+            let deliveryAddress = 'Không có địa chỉ';
+            if (order.shippingAddress) {
+                const { address, ward, district, city } = order.shippingAddress;
+                const addressParts = [address, ward, district, city].filter(Boolean);
+                if (addressParts.length > 0) {
+                    deliveryAddress = addressParts.join(', ');
+                }
+            }
+
+            return {
+                _id: order._id,
+                user: {
+                    _id: order.userId && typeof order.userId === 'object' ? order.userId._id : order.userId,
+                    userName: userName
+                },
+                totalAmount: order.totalPrice || 0,
+                items: order.items || [],
+                status: order.status,
+                paymentMethod: order.paymentMethod,
+                createdAt: order.createdAt,
+                deliveryAddress: deliveryAddress
+            };
+        });
 
         // Đếm tổng số đơn hàng
         const total = await Order.countDocuments(query);
+        console.log(`[OrderController] Tổng số đơn hàng: ${total}`);
 
         // Trả về kết quả
         return res.status(200).json({
             success: true,
-            count: orders.length,
+            count: transformedOrders.length,
             total,
             totalPages: Math.ceil(total / pageSize),
             currentPage: pageNum,
-            data: orders
+            data: transformedOrders
         });
     } catch (error) {
         console.error('Lỗi khi lấy danh sách đơn hàng:', error);
         return res.status(500).json({
             success: false,
-            message: 'Đã xảy ra lỗi, không thể lấy danh sách đơn hàng'
+            message: 'Đã xảy ra lỗi, không thể lấy danh sách đơn hàng',
+            error: error.message
         });
     }
 };

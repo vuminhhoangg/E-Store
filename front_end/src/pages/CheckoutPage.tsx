@@ -268,7 +268,6 @@ const CheckoutPage = () => {
             city: provinceName,
             district: districtName,
             ward: wardName,
-            email: userData?.email || '',
             notes: formData.notes
         };
         localStorage.setItem('shippingInfo', JSON.stringify(shippingInfo));

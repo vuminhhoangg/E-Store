@@ -423,6 +423,20 @@ export const authAPI = {
 
             const response = await api.post<RegisterResponse>('/auth/register', userData);
             console.log('Register response:', response.data);
+
+            // Kiểm tra cấu trúc phản hồi
+            if (response.data) {
+                if (response.data.success === true) {
+                    console.log('Registration successful with server confirmation');
+                } else if (response.data.message) {
+                    console.log(`Registration response contains message: ${response.data.message}`);
+                } else {
+                    console.log('Registration response has unexpected structure:', response.data);
+                }
+            } else {
+                console.warn('Registration response is empty or null');
+            }
+
             return response;
         } catch (error: any) {
             console.error('Registration error details:', {

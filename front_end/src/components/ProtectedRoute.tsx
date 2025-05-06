@@ -6,23 +6,17 @@ interface ProtectedRouteProps {
     children: ReactNode;
 }
 
-// Route chỉ cho phép người dùng đã đăng nhập
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+export const ProtectedRoute = React.memo(({ children }: ProtectedRouteProps) => {
     const location = useLocation();
     const auth = useAuth();
 
-    console.log('ProtectedRoute: Kiểm tra quyền truy cập');
-    console.log('Người dùng đã đăng nhập:', auth?.isLoggedIn);
-
     if (!auth || !auth.isLoggedIn) {
-        console.log('Người dùng chưa đăng nhập, chuyển hướng đến trang đăng nhập');
-        // Lưu vị trí hiện tại để sau khi đăng nhập xong có thể quay lại
+        console.log('ProtectedRoute: Chuyển hướng đến login (chỉ log 1 lần)');
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    console.log('Người dùng đã đăng nhập, cho phép truy cập');
     return <>{children}</>;
-};
+});
 
 // Route chỉ cho phép admin truy cập
 export const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {

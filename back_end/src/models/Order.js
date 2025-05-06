@@ -65,10 +65,6 @@ const shippingAddressSchema = new mongoose.Schema({
     phone: {
         type: String,
         required: true
-    },
-    email: {
-        type: String,
-        required: true
     }
 });
 

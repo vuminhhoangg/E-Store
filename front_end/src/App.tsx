@@ -88,11 +88,16 @@ const AppContent = () => {
               <OrderSummaryPage />
             </ProtectedRoute>
           } />
-            <Route path="order-success/:id" element={
-                <ProtectedRoute>
-                <OrderSuccessPage />
-                </ProtectedRoute>
-            } />
+          <Route path="order-success/:id" element={
+            <ProtectedRoute>
+              <OrderSuccessPage />
+            </ProtectedRoute>
+          } />
+          <Route path="order-success" element={
+            <ProtectedRoute>
+              <OrderSuccessPage />
+            </ProtectedRoute>
+          } />
 
           {/* 404 Page */}
           <Route path="*" element={<NotFoundPage />} />

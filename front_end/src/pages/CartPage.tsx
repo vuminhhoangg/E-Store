@@ -32,6 +32,7 @@ const CartPage = () => {
     const [couponCode, setCouponCode] = useState('');
     const [couponApplied, setCouponApplied] = useState(false);
     const [discount, setDiscount] = useState(0);
+    const [shippingFee, setShippingFee] = useState(0);
     const [selectedProduct, setSelectedProduct] = useState<ProductDetail | null>(null);
     const [showProductModal, setShowProductModal] = useState(false);
     const { isAuthenticated, refreshSession } = useContext(AuthContext);
@@ -62,6 +63,14 @@ const CartPage = () => {
             if (response && response.success) {
                 // Cập nhật state với dữ liệu mới từ server
                 setCart(response.data);
+
+                // Tính phí vận chuyển dựa trên tổng giá trị đơn hàng
+                const total = response.data.totalAmount || 0;
+                if (total >= 5000000) {
+                    setShippingFee(0); // Miễn phí vận chuyển cho đơn hàng từ 5 triệu trở lên
+                } else {
+                    setShippingFee(30000); // 30.000đ phí vận chuyển cho đơn hàng dưới 5 triệu
+                }
 
                 // Lưu thông tin giỏ hàng vào localStorage để các trang khác có thể sử dụng
                 localStorage.setItem('cart', JSON.stringify(response.data.cartItems));
@@ -98,6 +107,15 @@ const CartPage = () => {
                 setCart(response.data);
                 // Cập nhật localStorage
                 localStorage.setItem('cart', JSON.stringify(response.data.cartItems));
+
+                // Cập nhật phí vận chuyển
+                const total = response.data.totalAmount || 0;
+                if (total >= 5000000) {
+                    setShippingFee(0);
+                } else {
+                    setShippingFee(30000);
+                }
+
                 toast.success('Đã cập nhật số lượng sản phẩm');
             } else {
                 toast.error('Không thể cập nhật số lượng sản phẩm');
@@ -127,6 +145,15 @@ const CartPage = () => {
                 setCart(response.data);
                 // Cập nhật localStorage
                 localStorage.setItem('cart', JSON.stringify(response.data.cartItems));
+
+                // Cập nhật phí vận chuyển
+                const total = response.data.totalAmount || 0;
+                if (total >= 5000000) {
+                    setShippingFee(0);
+                } else {
+                    setShippingFee(30000);
+                }
+
                 toast.success('Đã xóa sản phẩm khỏi giỏ hàng');
             } else {
                 toast.error('Không thể xóa sản phẩm khỏi giỏ hàng');
@@ -154,14 +181,40 @@ const CartPage = () => {
             setCouponApplied(true);
             setDiscount(0.1); // Giảm 10%
             toast.success('Áp dụng mã giảm giá thành công: Giảm 10%');
+
+            // Tính lại phí vận chuyển dựa trên tổng sau khi giảm giá
+            const subtotal = calculateSubtotal();
+            const discountedTotal = subtotal - (subtotal * 0.1);
+            if (discountedTotal >= 5000000) {
+                setShippingFee(0);
+            } else {
+                setShippingFee(30000);
+            }
         } else if (couponCode.toUpperCase() === 'SAVE20') {
             setCouponApplied(true);
             setDiscount(0.2); // Giảm 20%
             toast.success('Áp dụng mã giảm giá thành công: Giảm 20%');
+
+            // Tính lại phí vận chuyển dựa trên tổng sau khi giảm giá
+            const subtotal = calculateSubtotal();
+            const discountedTotal = subtotal - (subtotal * 0.2);
+            if (discountedTotal >= 5000000) {
+                setShippingFee(0);
+            } else {
+                setShippingFee(30000);
+            }
         } else {
             toast.error('Mã giảm giá không hợp lệ!');
             setCouponApplied(false);
             setDiscount(0);
+
+            // Tính lại phí vận chuyển dựa trên tổng không giảm giá
+            const subtotal = calculateSubtotal();
+            if (subtotal >= 5000000) {
+                setShippingFee(0);
+            } else {
+                setShippingFee(30000);
+            }
         }
     }
 
@@ -182,7 +235,7 @@ const CartPage = () => {
     }
 
     const calculateTotal = () => {
-        return calculateSubtotal() - calculateDiscountAmount();
+        return calculateSubtotal() - calculateDiscountAmount() + shippingFee;
     }
 
     const formatPrice = (price: number) => {
@@ -417,7 +470,12 @@ const CartPage = () => {
 
                                         <div className="flex justify-between py-3 border-b">
                                             <span className="text-base text-gray-600">Phí vận chuyển</span>
-                                            <span className="text-base font-medium text-green-600">Miễn phí</span>
+                                            <span className="text-base font-medium text-green-600">
+                                                {shippingFee === 0
+                                                    ? "Miễn phí"
+                                                    : formatPrice(shippingFee)
+                                                }
+                                            </span>
                                         </div>
 
                                         <div className="flex justify-between py-4 border-b">
@@ -461,7 +519,7 @@ const CartPage = () => {
                                                 <svg className="w-4 h-4 mr-2 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                                                 </svg>
-                                                <span className="truncate">Miễn phí vận chuyển cho đơn hàng từ 5.000.000đ</span>
+                                                <span className="truncate">Miễn phí vận chuyển cho đơn hàng từ 5.000.000đ, phí 30.000đ cho đơn hàng dưới 5.000.000đ</span>
                                             </div>
                                             <div className="flex items-center text-sm text-gray-600 whitespace-nowrap overflow-hidden">
                                                 <svg className="w-4 h-4 mr-2 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
