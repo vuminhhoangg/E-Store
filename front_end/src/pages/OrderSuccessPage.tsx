@@ -21,7 +21,6 @@ const OrderSuccessPage: React.FC = () => {
                 console.log('OrderSuccessPage: Đang tải thông tin đơn hàng với ID:', id);
                 setLoading(true);
                 const response = await orderAPI.getOrderById(id);
-                console.log('OrderSuccessPage: Phản hồi API:', JSON.stringify(response, null, 2));
 
                 // Kiểm tra cấu trúc phản hồi
                 if (response && response.data) {
@@ -172,18 +171,36 @@ const OrderSuccessPage: React.FC = () => {
 
                         <div className="text-left mb-8">
                             <h3 className="text-lg font-semibold text-gray-800 mb-3">Thông tin giao hàng</h3>
-                            <p className="text-gray-700 mb-1">
-                                <span className="font-medium">Người nhận:</span>{' '}
-                                {orderDetails.shippingAddress?.fullName}
-                            </p>
-                            <p className="text-gray-700 mb-1">
-                                <span className="font-medium">Địa chỉ:</span>{' '}
-                                {orderDetails.shippingAddress?.address}, {orderDetails.shippingAddress?.ward}, {orderDetails.shippingAddress?.district}, {orderDetails.shippingAddress?.city}
-                            </p>
-                            <p className="text-gray-700 mb-1">
-                                <span className="font-medium">Điện thoại:</span>{' '}
-                                {orderDetails.shippingAddress?.phone}
-                            </p>
+                            {orderDetails.shippingAddress ? (
+                                <>
+                                    <p className="text-gray-700 mb-1">
+                                        <span className="font-medium">Người nhận:</span>{' '}
+                                        {orderDetails.shippingAddress?.fullName || 'Không có thông tin'}
+                                    </p>
+                                    <p className="text-gray-700 mb-1">
+                                        <span className="font-medium">Địa chỉ:</span>{' '}
+                                        {orderDetails.shippingAddress?.address ?
+                                            (() => {
+                                                // Tạo mảng các thành phần địa chỉ
+                                                const addressParts = [
+                                                    orderDetails.shippingAddress.address,
+                                                ];
+                                                // Lọc bỏ các giá trị rỗng hoặc null/undefined
+                                                const filteredParts = addressParts.filter(part => part && part.trim());
+                                                // Nối các phần địa chỉ bằng dấu phẩy
+                                                return filteredParts.join(', ');
+                                            })() :
+                                            'Không có thông tin'
+                                        }
+                                    </p>
+                                    <p className="text-gray-700 mb-1">
+                                        <span className="font-medium">Điện thoại:</span>{' '}
+                                        {orderDetails.shippingAddress?.phone || 'Không có thông tin'}
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="text-yellow-600 bg-yellow-50 p-2 rounded">Không có thông tin giao hàng</p>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

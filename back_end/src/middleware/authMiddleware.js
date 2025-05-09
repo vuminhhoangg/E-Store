@@ -2,100 +2,122 @@ import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 
-const protect = asyncHandler(async (req, res, next) => {
-    let token;
+// Middleware bảo vệ các route, yêu cầu user đã đăng nhập
+export const protect = async (req, res, next) => {
+    try {
+        console.log('=== BEGIN authMiddleware.protect ===');
 
-    // Ghi log yêu cầu xác thực
-    console.log(`[Auth] Xác thực yêu cầu: ${req.method} ${req.originalUrl}`);
+        let token;
 
-    if (
-        req.headers.authorization &&
-        req.headers.authorization.startsWith('Bearer')
-    ) {
-        try {
-            token = req.headers.authorization.split(' ')[1];
+        // Kiểm tra Authorization header
+        const authHeader = req.headers.authorization;
+        console.log('Authorization header:', authHeader ? `${authHeader.substring(0, 15)}...` : 'not found');
 
-            if (!token) {
-                console.log('[Auth] Token rỗng trong header Authorization');
-                res.status(401);
-                throw new Error('Token không hợp lệ');
-            }
+        if (authHeader && authHeader.startsWith('Bearer')) {
+            try {
+                // Lấy token từ header
+                token = authHeader.split(' ')[1];
 
-            console.log(`[Auth] Đang xác thực token...`);
-
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            console.log(`[Auth] Token hợp lệ, userId: ${decoded.id}`);
-
-            // Lấy thông tin người dùng từ database
-            const user = await User.findById(decoded.id).select('-password');
-
-            if (!user) {
-                console.log(`[Auth] Không tìm thấy người dùng với id: ${decoded.id}`);
-                res.status(401);
-                throw new Error('Không tìm thấy người dùng với token này');
-            }
-
-            // Kiểm tra xem tài khoản có bị khóa không
-            if (user.isBlocked) {
-                console.log(`[Auth] Tài khoản người dùng ${user._id} đã bị khóa`);
-                res.status(401);
-                throw new Error('Tài khoản của bạn đã bị khóa');
-            }
-
-            // Kiểm tra xem token có trong danh sách bị vô hiệu hóa không
-            if (user.isTokenInvalid && user.isTokenInvalid(token)) {
-                console.log(`[Auth] Token đã bị vô hiệu hóa cho người dùng ${user._id}`);
-                res.status(401);
-                throw new Error('Token đã bị vô hiệu hóa');
-            }
-
-            // Lưu thông tin vào request
-            req.user = user;
-            req.token = token;
-
-            // Cập nhật thông tin thiết bị nếu có
-            if (req.path !== '/api/users/logout' && user.updateDevice) {
-                const userAgent = req.headers['user-agent'];
-                const ipAddress = req.ip || req.connection.remoteAddress;
-                try {
-                    await user.updateDevice(userAgent, ipAddress);
-                } catch (deviceError) {
-                    console.error(`[Auth] Lỗi khi cập nhật thông tin thiết bị:`, deviceError);
-                    // Không ném lỗi, tiếp tục xử lý
+                if (!token) {
+                    console.log('Token not found in Authorization header');
+                    return res.status(401).json({
+                        success: false,
+                        message: 'Không tìm thấy token, vui lòng đăng nhập lại'
+                    });
                 }
-            }
 
-            console.log(`[Auth] Xác thực thành công cho người dùng ${user._id}`);
-            next();
-        } catch (error) {
-            console.error(`[Auth] Lỗi xác thực: ${error.message}`, error);
+                // Verify token
+                console.log('Verifying token...');
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                console.log('Token verified successfully for user:', decoded.id);
 
-            if (error.name === 'JsonWebTokenError') {
+                // Tìm user theo id từ token và không trả về password
+                const user = await User.findById(decoded.id).select('-password');
+
+                if (!user) {
+                    console.log('User not found with ID from token');
+                    return res.status(401).json({
+                        success: false,
+                        message: 'Không tìm thấy user với token này'
+                    });
+                }
+
+                // Gán user vào request để các route sau có thể sử dụng
+                req.user = user;
+                console.log('User attached to request:', user._id);
+                next();
+            } catch (error) {
+                console.error('Error verifying token:', error.message);
                 return res.status(401).json({
                     success: false,
-                    message: 'Token không hợp lệ hoặc đã bị thay đổi'
-                });
-            } else if (error.name === 'TokenExpiredError') {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Token đã hết hạn, vui lòng đăng nhập lại',
-                    tokenExpired: true
-                });
-            } else {
-                return res.status(401).json({
-                    success: false,
-                    message: error.message || 'Không được phép, token không hợp lệ'
+                    message: 'Token không hợp lệ hoặc đã hết hạn'
                 });
             }
+        } else {
+            console.log('No Authorization header with Bearer token');
+            return res.status(401).json({
+                success: false,
+                message: 'Không tìm thấy token, vui lòng đăng nhập lại'
+            });
         }
-    } else {
-        console.log('[Auth] Không tìm thấy token trong header');
+    } catch (error) {
+        console.error('=== ERROR in authMiddleware.protect ===', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Lỗi server khi xác thực người dùng'
+        });
+    } finally {
+        console.log('=== END authMiddleware.protect ===');
+    }
+};
+
+// Middleware kiểm tra xem user có quyền admin hay không
+export const admin = (req, res, next) => {
+    console.log('=== BEGIN authMiddleware.admin ===');
+
+    if (!req.user) {
+        console.log('User không tồn tại trong request');
         return res.status(401).json({
             success: false,
-            message: 'Không có token xác thực, từ chối truy cập'
+            message: 'Không tìm thấy thông tin người dùng, vui lòng đăng nhập lại'
         });
     }
-});
+
+    // Kiểm tra nhiều cách để xác định admin
+    console.log('Kiểm tra quyền admin cho user:', {
+        userId: req.user._id,
+        userName: req.user.userName || req.user.username,
+        role: req.user.role,
+        isAdmin: req.user.isAdmin,
+        isAdminType: typeof req.user.isAdmin,
+        roleType: typeof req.user.role
+    });
+
+    // Kiểm tra cả hai cách: role === 'admin' hoặc isAdmin === true
+    const isAdminRole = req.user.role === 'admin';
+    const hasAdminFlag = req.user.isAdmin === true;
+
+    if (isAdminRole || hasAdminFlag) {
+        console.log(`User ${req.user._id} có quyền admin:`, {
+            byRole: isAdminRole,
+            byFlag: hasAdminFlag
+        });
+        next();
+    } else {
+        console.log(`User ${req.user._id} KHÔNG có quyền admin`, {
+            role: req.user.role,
+            isAdmin: req.user.isAdmin,
+            method: req.method,
+            path: req.originalUrl
+        });
+        res.status(403).json({
+            success: false,
+            message: 'Bạn không có quyền truy cập'
+        });
+    }
+
+    console.log('=== END authMiddleware.admin ===');
+};
 
 // Xác thực JWT token
 export const authenticateJWT = async (req, res, next) => {
@@ -150,23 +172,6 @@ export const authenticateJWT = async (req, res, next) => {
     }
 };
 
-
-const admin = [authenticateJWT, (req, res, next) => {
-    if (req.user && req.user.isAdmin) {
-        console.log(`[Auth] Xác thực quyền admin thành công cho người dùng ${req.user._id}`);
-        next();
-    } else {
-        console.log(`[Auth] Người dùng ${req.user?._id} không có quyền admin`);
-        res.status(403).json({
-            success: false,
-            message: 'Không được phép, chỉ admin mới có quyền truy cập'
-        });
-    }
-}];
-
-export { protect, admin };
-
-
 // Kiểm tra quyền Admin
 export const isAdmin = (req, res, next) => {
     try {
@@ -174,12 +179,13 @@ export const isAdmin = (req, res, next) => {
             userId: req.user?._id,
             userName: req.user?.userName,
             isAdmin: req.user?.isAdmin,
+            role: req.user?.role,
             requestPath: req.originalUrl,
             method: req.method
         });
 
         // Kiểm tra user đã được xác thực và có quyền admin
-        if (req.user && req.user.isAdmin === true) {
+        if (req.user && (req.user.isAdmin === true || req.user.role === 'admin')) {
             console.log(`[ADMIN CHECK] ✅ User ${req.user._id} (${req.user.userName}) has admin rights`);
             next();
         } else {
@@ -187,7 +193,8 @@ export const isAdmin = (req, res, next) => {
                 userId: req.user?._id,
                 userName: req.user?.userName,
                 isAdmin: req.user?.isAdmin,
-                isAdminType: typeof req.user?.isAdmin
+                isAdminType: typeof req.user?.isAdmin,
+                role: req.user?.role
             });
 
             return res.status(403).json({

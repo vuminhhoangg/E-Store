@@ -56,7 +56,14 @@ const WarrantyClaimDetailPage: React.FC = () => {
 
             if (response.data.success) {
                 const claimData = response.data.data;
-                setClaim(claimData);
+                const transformedClaim = {
+                    ...claimData,
+                    customerName: claimData.contactName || claimData.customerName,
+                    customerPhone: claimData.contactPhone || claimData.customerPhone,
+                    customerEmail: claimData.contactEmail || claimData.customerEmail,
+                    productImage: claimData.productImage || (claimData.productId && claimData.productId.image) || '',
+                };
+                setClaim(transformedClaim);
                 setStatusUpdate(claimData.status);
             } else {
                 setError(response.data.message || 'Không thể tải thông tin yêu cầu bảo hành');
@@ -113,6 +120,19 @@ const WarrantyClaimDetailPage: React.FC = () => {
                         Đang chờ xử lý
                     </span>
                 );
+            case 'under_review':
+                return (
+                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                        Đang xem xét
+                    </span>
+                );
+            case 'approved':
+                return (
+                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                        Đã chấp nhận
+                    </span>
+                );
+            case 'in_progress':
             case 'processing':
                 return (
                     <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
@@ -356,10 +376,12 @@ const WarrantyClaimDetailPage: React.FC = () => {
                                         id="status"
                                         value={statusUpdate}
                                         onChange={(e) => setStatusUpdate(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                     >
                                         <option value="pending">Đang chờ xử lý</option>
-                                        <option value="processing">Đang xử lý</option>
+                                        <option value="under_review">Đang xem xét</option>
+                                        <option value="approved">Đã chấp nhận</option>
+                                        <option value="in_progress">Đang xử lý</option>
                                         <option value="completed">Hoàn thành</option>
                                         <option value="rejected">Từ chối bảo hành</option>
                                     </select>

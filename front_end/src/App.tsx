@@ -11,9 +11,10 @@ import ChangePasswordPage from './pages/ChangePasswordPage'
 import OrderSummaryPage from './pages/OrderSummaryPage'
 import CheckoutPage from './pages/CheckoutPage'
 import { ProtectedRoute, AdminProtectedRoute } from './components/ProtectedRoute'
-import { AuthProvider, useAuth } from './components/AuthContext'
+import { AuthProvider } from './components/AuthContext'
 import Layout from './components/Layout'
 import { useEffect } from 'react'
+import { isLoggedIn, getCurrentUser, isAdmin } from './utils/auth'
 
 // Admin pages
 import AdminDashboard from './pages/Admin/AdminDashboard'
@@ -24,10 +25,10 @@ import AdminLayout from './pages/Admin/AdminLayout'
 import WarrantyManagementPage from './pages/Admin/WarrantyManagementPage'
 import WarrantyClaimDetailPage from './pages/Admin/WarrantyClaimDetailPage'
 import OrderSuccessPage from "./pages/OrderSuccessPage.tsx";
+import UserOrders from './pages/UserOrders'
 
 const AppContent = () => {
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   // Store admin path only on direct access
@@ -46,14 +47,17 @@ const AppContent = () => {
 
   // Handle admin redirects
   useEffect(() => {
-    if (isAuthenticated && user?.isAdmin === true && location.pathname === '/') {
+    const authenticated = isLoggedIn();
+    const user = getCurrentUser();
+
+    if (authenticated && user?.isAdmin === true && location.pathname === '/') {
       const lastPath = sessionStorage.getItem('lastAdminPath');
       const targetPath = lastPath || '/admin/dashboard';
 
       // Use immediate navigation without timeout
       navigate(targetPath, { replace: true });
     }
-  }, [isAuthenticated, user, location.pathname, navigate]);
+  }, [location.pathname, navigate]);
 
   return (
     <div className="app-container">
@@ -96,6 +100,11 @@ const AppContent = () => {
           <Route path="order-success" element={
             <ProtectedRoute>
               <OrderSuccessPage />
+            </ProtectedRoute>
+          } />
+          <Route path="orders" element={
+            <ProtectedRoute>
+              <UserOrders />
             </ProtectedRoute>
           } />
 

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const warrantyClaimSchema = new mongoose.Schema(
     {
@@ -163,4 +163,4 @@ warrantyClaimSchema.methods.updateStatus = function (status, userId, notes = '')
 
 const WarrantyClaim = mongoose.model('WarrantyClaim', warrantyClaimSchema);
 
-module.exports = WarrantyClaim; 
+export default WarrantyClaim; 

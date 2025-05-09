@@ -485,36 +485,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Phương thức xác thực quyền admin một lần duy nhất
     const verifyAdminOnce = async (): Promise<boolean> => {
         try {
-            // Kiểm tra nếu đã xác thực admin trước đó
+            console.log('[AuthContext] Đang xác thực quyền admin trên server...');
+
+            // Kiểm tra trong cache trước
             if (adminVerified) {
                 console.log('[AuthContext] Admin đã được xác thực trước đó');
                 return true;
             }
 
-            // Kiểm tra nếu chưa đăng nhập hoặc không phải admin
-            if (!isLoggedIn || !user || !user.isAdmin) {
-                console.log('[AuthContext] Không phải admin hoặc chưa đăng nhập');
+            const userInfo = getUserInfoFromStorage();
+            if (!userInfo || !userInfo.user) {
+                console.log('[AuthContext] Không tìm thấy thông tin user trong storage khi xác thực admin');
                 return false;
             }
 
-            // Refresh token trước khi kiểm tra quyền admin
-            await refreshSession();
+            console.log('[AuthContext] User info khi xác thực admin:', {
+                userId: userInfo.user.id,
+                userName: userInfo.user.userName,
+                isAdmin: userInfo.user.isAdmin,
+                token: userInfo.accessToken ? `${userInfo.accessToken.substring(0, 10)}...` : 'không có'
+            });
 
-            // Gọi API xác thực admin
-            const isAdmin = await authAPI.verifyAdmin();
+            if (!userInfo.user.isAdmin) {
+                console.log('[AuthContext] User không có quyền admin trong dữ liệu local');
+                return false;
+            }
 
-            if (isAdmin) {
-                console.log('[AuthContext] Xác thực admin thành công');
-                setAdminVerified(true);
-                return true;
-            } else {
-                console.log('[AuthContext] Xác thực admin thất bại');
-                setAdminVerified(false);
+            // Gọi API để xác thực quyền admin
+            console.log('[AuthContext] Gọi API để xác thực quyền admin');
+            try {
+                const verified = await authAPI.verifyAdmin();
+                console.log('[AuthContext] Kết quả xác thực admin từ server:', verified);
+
+                setAdminVerified(verified);
+                return verified;
+            } catch (error) {
+                console.error('[AuthContext] Lỗi khi xác thực admin từ server:', error);
                 return false;
             }
         } catch (error) {
-            console.error('[AuthContext] Lỗi khi xác thực admin:', error);
-            setAdminVerified(false);
+            console.error('[AuthContext] Lỗi trong quá trình xác thực admin:', error);
             return false;
         }
     };

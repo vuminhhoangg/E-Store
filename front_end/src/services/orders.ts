@@ -35,7 +35,6 @@ interface OrderData {
     notes?: string;
     isPaid: boolean;
     paidAt: Date | null;
-    warrantyStartDate: Date | null;
 }
 
 export const orderAPI = {
@@ -77,7 +76,6 @@ export const orderAPI = {
         try {
             console.log('Gọi API lấy thông tin đơn hàng với ID:', orderId);
             const response = await api.get(`/orders/${orderId}`, { headers: headers() });
-            console.log('Phản hồi API đơn hàng:', JSON.stringify(response.data, null, 2));
 
             // Kiểm tra cấu trúc phản hồi
             if (response.data && (response.data.data || (response.data.success && response.data.data))) {
@@ -126,7 +124,7 @@ export const orderAPI = {
     },
 
     createWarrantyClaim: async (orderItemId: string, data: { description: string; status: string; images?: string[] }) => {
-        const response = await api.post(`/warranty/claims/${orderItemId}`, data, { headers: headers() });
+        const response = await api.post(`/warranty/claims/order/${orderItemId}`, data, { headers: headers() });
         return response.data;
     },
 
@@ -140,7 +138,38 @@ export const orderAPI = {
         if (status) {
             url += `&status=${status}`;
         }
-        const response = await api.get(url, { headers: headers() });
+
+        try {
+            const response = await api.get(url, { headers: headers() });
+            return response;
+        } catch (error: any) {
+            console.error('[orderAPI.getAllWarrantyClaims] Lỗi:', error.message);
+            console.error('[orderAPI.getAllWarrantyClaims] Status:', error.response?.status);
+            console.error('[orderAPI.getAllWarrantyClaims] Response:', error.response?.data);
+            throw error;
+        }
+    },
+
+    getWarrantyClaimById: async (claimId: string) => {
+        const response = await api.get(`/warranty/claims/${claimId}`, { headers: headers() });
         return response.data;
     },
+
+    // Lấy danh sách sản phẩm đang trong thời gian bảo hành
+    getProductsUnderWarranty: async (page = 1, limit = 10) => {
+        try {
+            const url = `/warranty/products?page=${page}&limit=${limit}`;
+            console.log('[orderAPI.getProductsUnderWarranty] Gọi API:', url);
+
+            const response = await api.get(url, { headers: headers() });
+            console.log('[orderAPI.getProductsUnderWarranty] Phản hồi:', response.status, response.data?.success);
+
+            return response;
+        } catch (error: any) {
+            console.error('[orderAPI.getProductsUnderWarranty] Lỗi:', error.message);
+            console.error('[orderAPI.getProductsUnderWarranty] Status:', error.response?.status);
+            console.error('[orderAPI.getProductsUnderWarranty] Response:', error.response?.data);
+            throw error;
+        }
+    }
 }

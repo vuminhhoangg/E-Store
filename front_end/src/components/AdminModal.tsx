@@ -1,11 +1,11 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 
 interface AdminModalProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
     children: ReactNode;
-    size?: 'sm' | 'md' | 'lg' | 'xl';
+    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
 }
 
 const AdminModal: React.FC<AdminModalProps> = ({
@@ -15,6 +15,26 @@ const AdminModal: React.FC<AdminModalProps> = ({
     children,
     size = 'md'
 }) => {
+    // Đóng modal khi nhấn ESC
+    useEffect(() => {
+        const handleEsc = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+
+        // Prevent scrolling when modal is open
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        }
+
+        return () => {
+            window.removeEventListener('keydown', handleEsc);
+            document.body.style.overflow = 'auto';
+        };
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     // Xác định kích thước modal
@@ -22,8 +42,10 @@ const AdminModal: React.FC<AdminModalProps> = ({
     switch (size) {
         case 'sm': sizeClass = 'max-w-sm'; break;
         case 'md': sizeClass = 'max-w-md'; break;
-        case 'lg': sizeClass = 'max-w-lg'; break;
-        case 'xl': sizeClass = 'max-w-xl'; break;
+        case 'lg': sizeClass = 'max-w-2xl'; break;
+        case 'xl': sizeClass = 'max-w-4xl'; break;
+        case '2xl': sizeClass = 'max-w-5xl'; break;
+        case '3xl': sizeClass = 'max-w-6xl'; break;
         default: sizeClass = 'max-w-md';
     }
 
@@ -41,13 +63,14 @@ const AdminModal: React.FC<AdminModalProps> = ({
 
                 {/* Modal */}
                 <div
-                    className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${sizeClass} w-full`}
+                    className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${sizeClass} w-full admin-modal-container`}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="modal-headline"
+                    style={{ maxHeight: '85vh' }}
                 >
                     {/* Header */}
-                    <div className="px-4 py-3 bg-gray-50 sm:px-6 flex justify-between items-center border-b">
+                    <div className="px-4 py-3 bg-gray-50 sm:px-6 flex justify-between items-center border-b sticky top-0 z-10">
                         <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
                             {title}
                         </h3>
@@ -64,7 +87,7 @@ const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
 
                     {/* Body */}
-                    <div className="px-4 py-3 sm:p-6">
+                    <div className="admin-modal-content px-4 py-3 sm:p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 60px)' }}>
                         {children}
                     </div>
                 </div>

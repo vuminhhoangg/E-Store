@@ -202,9 +202,13 @@ orderSchema.pre('save', async function (next) {
 
 // Cập nhật các trường thời gian bảo hành khi kích hoạt
 orderSchema.methods.activateWarranty = function () {
-    const currentDate = new Date();
+    // Sử dụng thời gian giao hàng thành công thay vì thời gian hiện tại
+    const currentDate = this.deliveredAt ? new Date(this.deliveredAt) : new Date();
+
     this.warrantyActivated = true;
     this.warrantyStartDate = currentDate;
+
+    console.log(`[Order] Kích hoạt bảo hành cho đơn hàng ${this._id}, thời điểm bắt đầu bảo hành: ${currentDate}`);
 
     // Cập nhật thời gian bảo hành cho từng sản phẩm
     this.items.forEach(item => {
@@ -215,6 +219,8 @@ orderSchema.methods.activateWarranty = function () {
             const endDate = new Date(currentDate);
             endDate.setMonth(endDate.getMonth() + item.warrantyPeriodMonths);
             item.warrantyEndDate = endDate;
+
+            console.log(`[Order] Sản phẩm ${item.name}: Thời gian bảo hành ${item.warrantyPeriodMonths} tháng, từ ${currentDate.toISOString()} đến ${endDate.toISOString()}`);
 
             // Tạo mã serial nếu chưa có
             if (!item.serialNumber) {

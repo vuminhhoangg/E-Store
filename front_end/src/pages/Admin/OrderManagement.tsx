@@ -15,6 +15,16 @@ interface OrderUser {
     userName: string;
 }
 
+interface ShippingAddress {
+    fullName: string;
+    address: string;
+    city: string;
+    district: string;
+    ward: string;
+    phone: string;
+    notes?: string;
+}
+
 interface Order {
     _id: string;
     user: OrderUser;
@@ -24,6 +34,7 @@ interface Order {
     paymentMethod: string;
     createdAt: string;
     deliveryAddress: string;
+    shippingAddress?: ShippingAddress;
     isBlocked?: boolean;
 }
 
@@ -31,6 +42,8 @@ const OrderManagement = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [searchLoading, setSearchLoading] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [ordersPerPage] = useState(10);
@@ -41,6 +54,21 @@ const OrderManagement = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [error, setError] = useState<string | null>(null);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+    // Tạo debounce cho searchTerm
+    useEffect(() => {
+        const timerId = setTimeout(() => {
+            if (searchTerm !== debouncedSearchTerm) {
+                setSearchLoading(true); // Bắt đầu tìm kiếm
+                setDebouncedSearchTerm(searchTerm);
+                if (currentPage !== 1) {
+                    setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
+                }
+            }
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timerId);
+    }, [searchTerm, debouncedSearchTerm, currentPage]);
 
     // Đóng dropdown khi component unmount hoặc khi filter/search/trang thay đổi
     useEffect(() => {
@@ -102,6 +130,7 @@ const OrderManagement = () => {
                     console.error('Không tìm thấy thông tin đăng nhập');
                     setError('Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn');
                     setLoading(false);
+                    setSearchLoading(false);
                     return;
                 }
 
@@ -116,6 +145,7 @@ const OrderManagement = () => {
                     console.error('Không tìm thấy access token', userInfo);
                     setError('Phiên đăng nhập không hợp lệ');
                     setLoading(false);
+                    setSearchLoading(false);
                     return;
                 }
 
@@ -134,9 +164,10 @@ const OrderManagement = () => {
                                 Authorization: `Bearer ${token}`
                             },
                             params: {
-                                page: currentPage,
-                                limit: ordersPerPage,
-                                status: statusFilter !== 'all' ? statusFilter : undefined
+                                page: currentPage || 1,
+                                limit: ordersPerPage || 10,
+                                status: statusFilter !== 'all' ? statusFilter : undefined,
+                                search: debouncedSearchTerm ? debouncedSearchTerm : undefined
                             },
                             timeout: 30000 // Tăng timeout lên 30 giây
                         });
@@ -155,29 +186,75 @@ const OrderManagement = () => {
                 // Xử lý dữ liệu trả về từ API
                 let orderData = response.data.data || [];
 
+                // Log dữ liệu gốc từ API để kiểm tra
+                console.log('Dữ liệu gốc từ API trước khi xử lý:', JSON.stringify(orderData));
+
+                // Kiểm tra nếu không có dữ liệu và đang ở trang > 1 thì quay về trang 1
+                if (orderData.length === 0 && currentPage > 1) {
+                    console.log('Không có dữ liệu ở trang', currentPage, 'quay về trang 1');
+                    setCurrentPage(1);
+                    return; // Thoát để useEffect chạy lại với currentPage = 1
+                }
+
                 // Kiểm tra và chuyển đổi định dạng nếu cần
                 if (orderData.length > 0) {
+                    // In log chi tiết đơn hàng đầu tiên để debug
+                    console.log('Đơn hàng đầu tiên từ API:', orderData[0]);
+
                     // Kiểm tra xem dữ liệu đã ở định dạng cần thiết chưa
                     const firstOrder = orderData[0];
                     if (!firstOrder.user || !firstOrder.totalAmount) {
                         console.log('Dữ liệu đơn hàng không ở định dạng chuẩn, đang chuyển đổi...');
 
                         // Chuyển đổi định dạng
-                        orderData = orderData.map((order: any) => ({
-                            _id: order._id,
-                            user: {
-                                _id: order.userId?._id || 'unknown',
-                                userName: order.userId?.userName || order.userId?.phoneNumber || 'Không xác định'
-                            },
-                            totalAmount: order.totalPrice || 0,
-                            items: order.items || [],
-                            status: order.status,
-                            paymentMethod: order.paymentMethod,
-                            createdAt: order.createdAt,
-                            deliveryAddress: order.shippingAddress ?
-                                `${order.shippingAddress.address}, ${order.shippingAddress.ward}, ${order.shippingAddress.district}, ${order.shippingAddress.city}` :
-                                'Không có địa chỉ'
-                        }));
+                        orderData = orderData.map((order: any) => {
+                            // Log để kiểm tra shippingAddress
+                            if (order.shippingAddress) {
+                                console.log('ShippingAddress của đơn hàng:', order._id, order.shippingAddress);
+                            }
+
+                            // Kiểm tra dữ liệu shipping address
+                            let shippingAddressData = null;
+                            if (order.shippingAddress) {
+                                console.log('Chi tiết shippingAddress của đơn hàng:', order._id, order.shippingAddress);
+                                shippingAddressData = {
+                                    fullName: order.shippingAddress.fullName || '',
+                                    address: order.shippingAddress.address || '',
+                                    city: order.shippingAddress.city || '',
+                                    district: order.shippingAddress.district || '',
+                                    ward: order.shippingAddress.ward || '',
+                                    phone: order.shippingAddress.phone || '',
+                                    notes: order.shippingAddress.notes || ''
+                                };
+                            } else {
+                                console.log('Đơn hàng không có shippingAddress:', order._id);
+                            }
+
+                            // Tạo địa chỉ giao hàng từ shipping address hoặc sử dụng chuỗi mặc định
+                            let deliveryAddress = 'Không có địa chỉ';
+                            if (order.shippingAddress) {
+                                const { address, ward, district, city } = order.shippingAddress;
+                                const addressParts = [address, ward, district, city].filter(Boolean);
+                                if (addressParts.length > 0) {
+                                    deliveryAddress = addressParts.join(', ');
+                                }
+                            }
+
+                            return {
+                                _id: order._id,
+                                user: {
+                                    _id: order.userId?._id || 'unknown',
+                                    userName: order.userId?.userName || order.userId?.phoneNumber || 'Không xác định'
+                                },
+                                totalAmount: order.totalPrice || 0,
+                                items: order.items || [],
+                                status: order.status,
+                                paymentMethod: order.paymentMethod,
+                                createdAt: order.createdAt,
+                                deliveryAddress: deliveryAddress,
+                                shippingAddress: shippingAddressData
+                            };
+                        });
                     }
                 }
 
@@ -188,6 +265,7 @@ const OrderManagement = () => {
                 }
                 setError(null); // Xóa lỗi nếu thành công
                 setLoading(false);
+                setSearchLoading(false); // Kết thúc tìm kiếm kể cả khi có lỗi
             } catch (error: any) {
                 console.error('Lỗi khi lấy danh sách đơn hàng:', error);
 
@@ -236,15 +314,18 @@ const OrderManagement = () => {
 
                 setOrders([]); // Đặt orders là mảng rỗng khi có lỗi
                 setLoading(false);
+                setSearchLoading(false); // Kết thúc tìm kiếm kể cả khi có lỗi
             }
         };
 
         fetchOrders();
-    }, [refreshData, statusFilter, currentPage, ordersPerPage]);
+    }, [refreshData, statusFilter, currentPage, ordersPerPage, debouncedSearchTerm]);
 
     // Cập nhật trạng thái đơn hàng
     const updateOrderStatus = async (orderId: string, newStatus: string) => {
         try {
+            console.log(`[OrderManagement] Bắt đầu cập nhật đơn hàng ${orderId} thành trạng thái: ${newStatus}`);
+
             // Kiểm tra token từ cả userInfo và user_info
             const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo') ||
                 localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
@@ -274,17 +355,41 @@ const OrderManagement = () => {
             };
 
             // Gọi API để cập nhật trạng thái
-            console.log(`Cập nhật trạng thái đơn hàng ${orderId} thành ${newStatus}`);
-            await axios.put(`/api/orders/${orderId}/status`, { status: newStatus }, config);
+            console.log(`[OrderManagement] Gửi request cập nhật trạng thái đơn hàng ${orderId} thành ${newStatus}`);
+            const response = await axios.put(`/api/orders/${orderId}/status`, { status: newStatus }, config);
+            console.log(`[OrderManagement] Kết quả cập nhật:`, response.data);
 
-            // Cập nhật UI
-            setOrders(orders.map(order =>
+            // Cập nhật UI cho danh sách đơn hàng
+            setOrders(prevOrders => prevOrders.map(order =>
                 order._id === orderId ? { ...order, status: newStatus } : order
             ));
+            console.log(`[OrderManagement] Đã cập nhật UI của danh sách đơn hàng`);
 
-            toast.success('Đã cập nhật trạng thái đơn hàng thành công');
+            // Cập nhật trạng thái của đơn hàng đang được chọn (nếu có)
+            if (selectedOrder && selectedOrder._id === orderId) {
+                setSelectedOrder(prevOrder => ({
+                    ...prevOrder!,
+                    status: newStatus
+                }));
+                console.log(`[OrderManagement] Đã cập nhật UI cho đơn hàng đang được chọn`);
+            }
+
+            // Nếu chuyển sang trạng thái delivered, hiển thị thông báo đặc biệt
+            if (newStatus === 'delivered') {
+                toast.success('Đã cập nhật trạng thái đơn hàng thành công!');
+                console.log(`[OrderManagement] Đơn hàng ${orderId} đã được đánh dấu là đã giao, đã kích hoạt bảo hành`);
+            } else {
+                toast.success('Đã cập nhật trạng thái đơn hàng thành công');
+            }
         } catch (error: any) {
-            console.error('Lỗi khi cập nhật trạng thái đơn hàng:', error);
+            console.error('[OrderManagement] Lỗi khi cập nhật trạng thái đơn hàng:', error);
+
+            if (error.response) {
+                console.error('[OrderManagement] Chi tiết lỗi từ server:', {
+                    status: error.response.status,
+                    data: error.response.data
+                });
+            }
 
             if (error.response?.data?.message) {
                 toast.error(`Lỗi: ${error.response.data.message}`);
@@ -296,6 +401,8 @@ const OrderManagement = () => {
 
     // Xem chi tiết đơn hàng
     const viewOrderDetails = (order: Order) => {
+        console.log("Chi tiết đơn hàng:", order);
+        console.log("ShippingAddress của đơn hàng:", order.shippingAddress);
         setSelectedOrder(order);
         setDetailsModalOpen(true);
     };
@@ -317,22 +424,17 @@ const OrderManagement = () => {
         return `${hours}:${minutes} ngày ${day}/${month}/${year}`;
     };
 
-    // Lọc orders theo từ khóa tìm kiếm và trạng thái
-    const filteredOrders = orders.filter((order: Order) => {
-        const { _id, user, status: orderStatus } = order;
+    // Lọc orders theo từ khóa tìm kiếm và trạng thái (chỉ cho tìm kiếm tức thời, không phải tìm kiếm server)
+    const filteredOrders = searchTerm.trim() === '' ? orders : orders.filter((order: Order) => {
+        const { _id, user } = order;
         const term = searchTerm.toLowerCase();
-        const statusMatch = statusFilter === 'all' || orderStatus === statusFilter;
 
-        return statusMatch && (
-            _id.toLowerCase().includes(term) ||
-            user.userName.toLowerCase().includes(term)
-        );
+        return _id.toLowerCase().includes(term) ||
+            user.userName.toLowerCase().includes(term);
     });
 
-    // Logic phân trang
-    const indexOfLastOrder = currentPage * ordersPerPage;
-    const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-    const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+    // Đã không còn cần slice dữ liệu vì đã được phân trang từ server
+    const currentOrders = filteredOrders;
 
     // Xử lý khi chuyển trang
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
@@ -405,18 +507,25 @@ const OrderManagement = () => {
                         <div className="relative">
                             <input
                                 type="text"
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${searchLoading ? 'bg-gray-50' : ''}`}
                                 placeholder="Tìm kiếm theo mã đơn hàng, tên khách hàng..."
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value);
-                                    setCurrentPage(1);
                                 }}
+                                disabled={loading}
                             />
                             <div className="absolute left-3 top-2.5 text-gray-400">
-                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                {searchLoading ? (
+                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                ) : (
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -500,7 +609,10 @@ const OrderManagement = () => {
                                             {order._id}
                                         </td>
                                         <td className="customer-info">
-                                            <div className="font-medium">{order.user.userName}</div>
+                                            <div className="font-medium">
+                                                {order.shippingAddress?.fullName || order.user.userName}
+                                                {!order.shippingAddress?.fullName}
+                                            </div>
                                             <div className="text-sm text-gray-500 truncate">
                                                 {order.deliveryAddress}
                                             </div>
@@ -639,15 +751,7 @@ const OrderManagement = () => {
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-700">
-                                    Hiển thị{' '}
-                                    <span className="font-medium">{indexOfFirstOrder + 1}</span>
-                                    {' '}-{' '}
-                                    <span className="font-medium">
-                                        {indexOfLastOrder > filteredOrders.length
-                                            ? filteredOrders.length
-                                            : indexOfLastOrder}
-                                    </span>{' '}
-                                    trong {filteredOrders.length} kết quả
+                                    Trang {currentPage} / {totalPages} - Hiển thị {currentOrders.length} đơn hàng
                                 </p>
                             </div>
                             <div className="flex space-x-2">
@@ -724,8 +828,26 @@ const OrderManagement = () => {
                         <div>
                             <h3 className="text-lg font-medium text-gray-900 mb-2">Thông tin đơn hàng</h3>
                             <p><span className="font-medium">Mã đơn hàng:</span> {selectedOrder._id}</p>
-                            <p><span className="font-medium">Khách hàng:</span> {selectedOrder.user.userName}</p>
+                            <p>
+                                <span className="font-medium">Khách hàng: </span>
+                                {selectedOrder.shippingAddress?.fullName
+                                    ? <span>{selectedOrder.shippingAddress.fullName}</span>
+                                    : <span>{selectedOrder.user.userName} </span>
+                                }
+                            </p>
                             <p><span className="font-medium">Tổng tiền:</span> {formatPrice(selectedOrder.totalAmount)}</p>
+                            <p>
+                                <span className="font-medium">Trạng thái hiện tại: </span>
+                                <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(selectedOrder.status) === 'yellow' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                    getStatusColor(selectedOrder.status) === 'blue' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                        getStatusColor(selectedOrder.status) === 'green' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                            getStatusColor(selectedOrder.status) === 'red' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                                getStatusColor(selectedOrder.status) === 'indigo' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' :
+                                                    'bg-gray-100 text-gray-800 border border-gray-200'
+                                    }`}>
+                                    {getStatusName(selectedOrder.status)}
+                                </span>
+                            </p>
                         </div>
 
                         <div>
@@ -734,9 +856,16 @@ const OrderManagement = () => {
                             </label>
                             <select
                                 id="status"
-                                value={selectedOrder.status}
-                                onChange={(e) => updateOrderStatus(selectedOrder._id, e.target.value as string)}
+                                defaultValue={selectedOrder.status}
                                 className="admin-select mt-1"
+                                value={selectedOrder.status}
+                                onChange={(e) => {
+                                    // Update the selectedOrder status locally to show the change in the UI
+                                    setSelectedOrder(prev => ({
+                                        ...prev!,
+                                        status: e.target.value
+                                    }));
+                                }}
                             >
                                 {orderStatuses.map(status => (
                                     status.id !== 'all' && (
@@ -759,8 +888,10 @@ const OrderManagement = () => {
                             <button
                                 type="button"
                                 onClick={() => {
+                                    const select = document.getElementById('status') as HTMLSelectElement;
+                                    const newStatus = select.value;
+                                    updateOrderStatus(selectedOrder._id, newStatus);
                                     setModalOpen(false);
-                                    setRefreshData(prev => !prev);
                                 }}
                                 className="admin-btn-success"
                             >
@@ -776,7 +907,7 @@ const OrderManagement = () => {
                 isOpen={detailsModalOpen}
                 onClose={() => setDetailsModalOpen(false)}
                 title="Chi tiết đơn hàng"
-                size="lg"
+                size="2xl"
             >
                 {selectedOrder && (
                     <div className="space-y-6">
@@ -821,19 +952,53 @@ const OrderManagement = () => {
                             <div className="order-summary-card">
                                 <h3 className="order-summary-title">Thông tin khách hàng</h3>
                                 <div className="space-y-2">
+                                    {selectedOrder.shippingAddress?.fullName ? (
+                                        <div className="order-summary-field">
+                                            <span className="order-summary-label">Họ tên người nhận:</span>
+                                            <span className="order-summary-value font-semibold">{selectedOrder.shippingAddress.fullName}</span>
+                                        </div>
+                                    ) : (
+                                        <div className="order-summary-field bg-yellow-50 -mx-5 px-5 py-2 border-y border-yellow-100 my-1">
+                                            <span className="order-summary-label text-yellow-700">Họ tên người nhận:</span>
+                                            <span className="order-summary-value text-yellow-800">Không có thông tin (Sử dụng tên tài khoản: {selectedOrder.user.userName})</span>
+                                        </div>
+                                    )}
+
                                     <div className="order-summary-field">
-                                        <span className="order-summary-label">Họ tên:</span>
-                                        <span className="order-summary-value">{selectedOrder.user.userName}</span>
-                                    </div>
-                                    <div className="order-summary-field">
-                                        <span className="order-summary-label">ID khách hàng:</span>
-                                        <span className="order-summary-value">{selectedOrder.user._id}</span>
+                                        <span className="order-summary-label">Tài khoản đặt hàng:</span>
+                                        <span className="order-summary-value text-gray-600">{selectedOrder.user.userName} (ID: {selectedOrder.user._id})</span>
                                     </div>
 
-                                    {selectedOrder.deliveryAddress && (
-                                        <div className="mt-4">
+                                    {selectedOrder.shippingAddress?.phone && (
+                                        <div className="order-summary-field phone-field">
+                                            <span className="order-summary-label">Số điện thoại liên hệ:</span>
+                                            <span className="order-summary-value font-semibold">{selectedOrder.shippingAddress.phone}</span>
+                                        </div>
+                                    )}
+
+                                    {!selectedOrder.shippingAddress?.phone && (
+                                        <div className="order-summary-field bg-yellow-50 -mx-5 px-5 py-2 border-y border-yellow-100 my-1">
+                                            <span className="order-summary-label text-yellow-700">Số điện thoại:</span>
+                                            <span className="order-summary-value text-yellow-800">Không có thông tin</span>
+                                        </div>
+                                    )}
+
+                                    {selectedOrder.shippingAddress ? (
+                                        <div className="mt-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
                                             <h4 className="text-md font-semibold mb-2 text-gray-700">Địa chỉ giao hàng</h4>
-                                            <p className="text-sm text-gray-600 break-words">{selectedOrder.deliveryAddress}</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                {selectedOrder.shippingAddress.address && (
+                                                    <div className="text-sm"><span className="font-medium">Địa chỉ:</span> {selectedOrder.shippingAddress.address}</div>
+                                                )}
+                                                {selectedOrder.shippingAddress.notes && (
+                                                    <div className="text-sm col-span-2"><span className="font-medium">Ghi chú:</span> {selectedOrder.shippingAddress.notes}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-4 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                            <h4 className="text-md font-semibold mb-2 text-yellow-700">Địa chỉ giao hàng</h4>
+                                            <p className="text-sm text-yellow-800">Không có thông tin địa chỉ giao hàng</p>
                                         </div>
                                     )}
                                 </div>
@@ -843,13 +1008,13 @@ const OrderManagement = () => {
                         <div className="order-summary-card">
                             <h3 className="order-summary-title">Sản phẩm đã đặt</h3>
                             <div className="overflow-x-auto">
-                                <table className="admin-table">
+                                <table className="order-product-table w-full">
                                     <thead>
                                         <tr>
-                                            <th>Sản phẩm</th>
-                                            <th>Đơn giá</th>
-                                            <th>Số lượng</th>
-                                            <th>Thành tiền</th>
+                                            <th className="w-1/2">Sản phẩm</th>
+                                            <th className="w-1/6 text-right">Đơn giá</th>
+                                            <th className="w-1/6 text-center">Số lượng</th>
+                                            <th className="w-1/6 text-right">Thành tiền</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -890,6 +1055,7 @@ const OrderManagement = () => {
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        // Ensure we're keeping the current status when opening the update modal
                                         setDetailsModalOpen(false);
                                         setModalOpen(true);
                                     }}

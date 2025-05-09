@@ -221,9 +221,6 @@ const refreshTokenIfNeeded = async (): Promise<string | null> => {
 
 // Interceptor cho request
 api.interceptors.request.use((config) => {
-    // Log request details
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`,
-        config.params ? `Params: ${JSON.stringify(config.params)}` : '');
 
     // Lấy token từ localStorage hoặc sessionStorage
     const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
@@ -246,9 +243,7 @@ api.interceptors.request.use((config) => {
 // Interceptor cho response
 api.interceptors.response.use(
     (response) => {
-        // Log response status and data briefly
-        console.log(`[API Response] ${response.status} ${response.config.url}`,
-            response.data ? `Success: ${response.data.success}` : '');
+        // Log response status and data briefly     
         return response;
     },
     async (error) => {
@@ -309,61 +304,72 @@ api.interceptors.response.use(
     }
 );
 
-// Hàm xác thực admin và cache kết quả
+// Hàm kiểm tra phiên đăng nhập
+export const checkSession = async (): Promise<boolean> => {
+    try {
+        console.log('[API] Kiểm tra phiên đăng nhập');
+        const response = await api.get('/auth/check-session');
+        console.log('[API] Phiên đăng nhập hợp lệ:', response.data?.success);
+        return response.data?.success || false;
+    } catch (error) {
+        console.error('[API] Lỗi kiểm tra phiên đăng nhập:', error);
+        return false;
+    }
+};
+
+// Hàm kiểm tra quyền admin
 export const verifyAdmin = async (): Promise<boolean> => {
     try {
-        const userInfo = getUserInfo();
-        if (!userInfo || !userInfo.user?.isAdmin) {
-            console.log('[API] Không tìm thấy thông tin admin');
+        console.log('[API] Kiểm tra quyền admin');
+
+        // Lấy userInfo từ storage để kiểm tra token
+        const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+        if (!userInfoStr) {
+            console.log('[API] Không tìm thấy thông tin người dùng trong storage');
             return false;
         }
 
-        // Kiểm tra cache
-        if (adminVerificationCache.verified &&
-            adminVerificationCache.userId === userInfo.user.id &&
-            Date.now() - adminVerificationCache.timestamp < ADMIN_VERIFICATION_CACHE_DURATION) {
-            console.log('[API] Sử dụng cache xác thực admin');
-            return true;
-        }
-
-        // Refresh token nếu cần
-        const token = await refreshTokenIfNeeded();
-        if (!token) {
-            console.error('[API] Không thể lấy token mới');
-            return false;
-        }
-
-        // Gọi API xác thực admin
-        const response = await api.get('/auth/verify-admin', {
-            headers: {
-                Authorization: `Bearer ${token}`
+        try {
+            const userInfo = JSON.parse(userInfoStr);
+            if (!userInfo.accessToken) {
+                console.log('[API] Không tìm thấy token trong thông tin người dùng');
+                return false;
             }
-        });
+            console.log('[API] Đã tìm thấy token trong storage');
+        } catch (error) {
+            console.error('[API] Lỗi khi parse thông tin người dùng:', error);
+            return false;
+        }
 
+        // Kiểm tra quyền admin từ server
+        const response = await api.get('/auth/verify-admin');
+        console.log('[API] Kết quả kiểm tra quyền admin từ server:', response.data);
+
+        // Lưu kết quả vào cache
         if (response.data.success) {
-            // Lưu vào cache
+            const userInfoObj = JSON.parse(userInfoStr);
             adminVerificationCache = {
                 verified: true,
                 timestamp: Date.now(),
-                userId: userInfo.user.id
+                userId: userInfoObj.user.id,
             };
-            console.log('[API] Đã xác thực admin và cache kết quả');
-            return true;
+            console.log('[API] Đã cập nhật cache xác thực admin:', adminVerificationCache);
         }
 
-        return false;
-    } catch (error: any) {
-        console.error('[API] Lỗi khi xác thực admin:', error);
-        // Xóa cache nếu có lỗi
-        clearAdminVerificationCache();
-
-        // Nếu là lỗi 403 (Forbidden), người dùng không có quyền admin
-        if (error.response?.status === 403) {
-            console.log('[API] Người dùng không có quyền admin');
+        return response.data.success || false;
+    } catch (error) {
+        console.error('[API] Lỗi khi kiểm tra quyền admin:', error);
+        // Nếu lỗi là 403, có nghĩa là không có quyền admin
+        if (axios.isAxiosError(error) && error.response?.status === 403) {
+            console.log('[API] Người dùng không có quyền admin (403)');
             return false;
         }
-
-        return false;
+        // Nếu lỗi là 401, có nghĩa là token không hợp lệ
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+            console.log('[API] Token không hợp lệ hoặc đã hết hạn (401)');
+            return false;
+        }
+        throw error;
     }
 };
 

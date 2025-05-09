@@ -32,7 +32,13 @@ export const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ c
 
             try {
                 setIsVerifying(true);
-                console.log('[AdminProtectedRoute] Bắt đầu xác thực admin');
+                console.log('[AdminProtectedRoute] Bắt đầu xác thực admin', {
+                    isLoggedIn,
+                    hasUser: !!user,
+                    userIsAdmin: user?.isAdmin,
+                    adminVerified,
+                    path: location.pathname
+                });
 
                 // Nếu đã xác thực admin trước đó
                 if (adminVerified) {
@@ -43,18 +49,25 @@ export const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ c
 
                 // Nếu chưa đăng nhập hoặc không phải admin
                 if (!isLoggedIn || !user?.isAdmin) {
-                    console.log('[AdminProtectedRoute] Không phải admin hoặc chưa đăng nhập');
+                    console.log('[AdminProtectedRoute] Không phải admin hoặc chưa đăng nhập', {
+                        isLoggedIn,
+                        userIsAdmin: user?.isAdmin
+                    });
                     navigate('/login', { state: { from: location } });
                     return;
                 }
 
                 // Xác thực admin
+                console.log('[AdminProtectedRoute] Gọi verifyAdminOnce()');
                 const verified = await verifyAdminOnce();
+                console.log('[AdminProtectedRoute] Kết quả verifyAdminOnce():', verified);
                 setIsAdmin(verified);
 
                 if (!verified) {
-                    console.log('[AdminProtectedRoute] Xác thực admin thất bại');
+                    console.log('[AdminProtectedRoute] Xác thực admin thất bại, chuyển hướng đến trang login');
                     navigate('/login', { state: { from: location } });
+                } else {
+                    console.log('[AdminProtectedRoute] Xác thực admin thành công');
                 }
             } catch (error) {
                 console.error('[AdminProtectedRoute] Lỗi khi xác thực admin:', error);
@@ -68,7 +81,10 @@ export const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ c
     }, [isLoggedIn, user, adminVerified, verifyAdminOnce, location, navigate]);
 
     if (isVerifying) {
-        return null; // Hoặc có thể hiển thị loading spinner
+        console.log('[AdminProtectedRoute] Đang xác thực admin...');
+        return <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+        </div>;
     }
 
     return isAdmin ? <>{children}</> : null;

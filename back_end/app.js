@@ -28,6 +28,64 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// DEBUG Middleware - đặt trước tất cả routes
+app.use((req, res, next) => {
+    // Chỉ log các request từ đường dẫn /api
+    if (req.url.startsWith('/api')) {
+        console.log("\n===== DEBUG REQUEST INFO =====");
+        console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+        console.log(`Headers:`, {
+            authorization: req.headers.authorization ? `${req.headers.authorization.substring(0, 15)}...` : 'missing',
+            'content-type': req.headers['content-type']
+        });
+
+        // Log request body nếu có
+        if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
+            const safeBody = { ...req.body };
+            if (safeBody.password) safeBody.password = '********';
+            console.log('Request Body:', JSON.stringify(safeBody, null, 2));
+        }
+
+        // Ghi đè response methods để log
+        const originalSend = res.send;
+        const originalJson = res.json;
+
+        res.send = function (body) {
+            console.log(`Response for ${req.method} ${req.url} - Status: ${res.statusCode}`);
+            if (body) {
+                try {
+                    console.log('Response Body:', typeof body === 'string' ? body : JSON.stringify(body, null, 2));
+                } catch (error) {
+                    console.log('Response Body: [Cannot stringify response]');
+                }
+            }
+            console.log("===== END DEBUG REQUEST INFO =====\n");
+            return originalSend.apply(this, arguments);
+        };
+
+        res.json = function (body) {
+            console.log(`Response for ${req.method} ${req.url} - Status: ${res.statusCode}`);
+            if (body) {
+                try {
+                    const safeResponse = { ...body };
+                    if (safeResponse.tokens) {
+                        safeResponse.tokens = {
+                            accessToken: safeResponse.tokens.accessToken ? `${safeResponse.tokens.accessToken.substring(0, 15)}...` : '',
+                            refreshToken: safeResponse.tokens.refreshToken ? `${safeResponse.tokens.refreshToken.substring(0, 15)}...` : ''
+                        };
+                    }
+                    console.log('Response Body:', JSON.stringify(safeResponse, null, 2));
+                } catch (error) {
+                    console.log('Response Body: [Cannot stringify response]');
+                }
+            }
+            console.log("===== END DEBUG REQUEST INFO =====\n");
+            return originalJson.apply(this, arguments);
+        };
+    }
+    next();
+});
+
 // Logging middleware
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);

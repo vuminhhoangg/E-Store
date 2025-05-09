@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { orderAPI } from '../services/orders';
+import { cartAPI } from '../services/cartService';
 
 import { User } from '../utils/auth';
-import { warrantyAPI } from "../services/warranty.ts";
 
 interface CartItem {
     _id: string;
@@ -169,7 +169,6 @@ const OrderSummaryPage = () => {
                 notes: shippingInfo.notes || '',
                 isPaid: false,
                 paidAt: null,
-                warrantyStartDate: null, // Sẽ được cập nhật khi admin xác nhận thanh toán
             };
 
             // Gọi API tạo đơn hàng
@@ -177,22 +176,22 @@ const OrderSummaryPage = () => {
             const response = await orderAPI.createOrder(orderData);
             console.log('Phản hồi từ API tạo đơn hàng:', response);
 
-            // Tạo thông tin bảo hành cho các sản phẩm
-            const warrantyPromises = cartItems.map(item => {
-                const warrantyData = {
-                    productId: item.product._id,
-                    customerId: userData?._id,
-                };
-                return warrantyAPI.createWarranty(warrantyData);
-            });
-
-            // Chờ tất cả các warranty được tạo
-            await Promise.all(warrantyPromises);
+            // Xóa giỏ hàng trên server
+            try {
+                await cartAPI.clearCart();
+                console.log('Đã xóa giỏ hàng trên server');
+            } catch (cartError) {
+                console.error('Không thể xóa giỏ hàng trên server:', cartError);
+                // Tiếp tục xử lý ngay cả khi không thể xóa giỏ hàng trên server
+            }
 
             // Xóa thông tin giỏ hàng và thông tin thanh toán sau khi đặt hàng thành công
             localStorage.removeItem('cart');
             localStorage.removeItem('paymentMethod');
             localStorage.removeItem('shippingInfo');
+
+            // Thông báo cho các component khác rằng giỏ hàng đã thay đổi
+            window.dispatchEvent(new Event('cartUpdated'));
 
             // Hiển thị thông báo và chuyển đến trang thành công
             toast.success('Đặt hàng thành công!');

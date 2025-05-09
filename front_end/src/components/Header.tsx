@@ -57,16 +57,34 @@ const Header = () => {
 
     // Đây chỉ là mô phỏng - trong thực tế bạn sẽ lấy số lượng từ giỏ hàng thật
     useEffect(() => {
-        const cart = localStorage.getItem('cart')
-        if (cart) {
-            try {
-                const cartItems = JSON.parse(cart)
-                setCartCount(cartItems.length)
-            } catch (error) {
-                setCartCount(0)
+        const updateCartCount = () => {
+            const cart = localStorage.getItem('cart');
+            if (cart) {
+                try {
+                    const cartItems = JSON.parse(cart);
+                    setCartCount(cartItems.length);
+                } catch (error) {
+                    setCartCount(0);
+                }
+            } else {
+                setCartCount(0);
             }
-        }
-    }, [])
+        };
+
+        // Cập nhật lần đầu
+        updateCartCount();
+
+        // Thêm event listener để lắng nghe thay đổi giỏ hàng
+        window.addEventListener('storage', updateCartCount);
+
+        // Đăng ký một custom event để cập nhật giỏ hàng từ các component khác
+        window.addEventListener('cartUpdated', updateCartCount);
+
+        return () => {
+            window.removeEventListener('storage', updateCartCount);
+            window.removeEventListener('cartUpdated', updateCartCount);
+        };
+    }, []);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault()
