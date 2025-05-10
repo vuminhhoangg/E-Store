@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import AdminModal from '../../components/AdminModal';
+import {warrantyAPI} from "../../services/warranty.ts";
 
 // Định nghĩa interfaces
 interface OrderStatus {
@@ -322,9 +323,9 @@ const OrderManagement = () => {
     }, [refreshData, statusFilter, currentPage, ordersPerPage, debouncedSearchTerm]);
 
     // Cập nhật trạng thái đơn hàng
-    const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    const updateOrderStatus = async (order: Order, newStatus: string) => {
         try {
-            console.log(`[OrderManagement] Bắt đầu cập nhật đơn hàng ${orderId} thành trạng thái: ${newStatus}`);
+            console.log(`[OrderManagement] Bắt đầu cập nhật đơn hàng ${order._id} thành trạng thái: ${newStatus}`);
 
             // Kiểm tra token từ cả userInfo và user_info
             const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo') ||
@@ -355,18 +356,21 @@ const OrderManagement = () => {
             };
 
             // Gọi API để cập nhật trạng thái
-            console.log(`[OrderManagement] Gửi request cập nhật trạng thái đơn hàng ${orderId} thành ${newStatus}`);
-            const response = await axios.put(`/api/orders/${orderId}/status`, { status: newStatus }, config);
-            console.log(`[OrderManagement] Kết quả cập nhật:`, response.data);
+            console.log(`[OrderManagement] Gửi request cập nhật trạng thái đơn hàng ${order._id} thành ${newStatus}`);
+            const response = await axios.put(`/api/orders/${order._id}/status`, { status: newStatus }, config);
+            const customerId = order.user._id;
+            if (newStatus === 'delivered') {
+                await Promise.all( order.items.map((item) => warrantyAPI.createWarranty({productId: item.productId,customerId: customerId}) ) );
+            }
 
             // Cập nhật UI cho danh sách đơn hàng
-            setOrders(prevOrders => prevOrders.map(order =>
-                order._id === orderId ? { ...order, status: newStatus } : order
+            setOrders(prevOrders => prevOrders.map(orderr =>
+                orderr._id === order._id ? { ...orderr, status: newStatus } : orderr
             ));
             console.log(`[OrderManagement] Đã cập nhật UI của danh sách đơn hàng`);
 
             // Cập nhật trạng thái của đơn hàng đang được chọn (nếu có)
-            if (selectedOrder && selectedOrder._id === orderId) {
+            if (selectedOrder && selectedOrder._id === order._id) {
                 setSelectedOrder(prevOrder => ({
                     ...prevOrder!,
                     status: newStatus
@@ -377,7 +381,7 @@ const OrderManagement = () => {
             // Nếu chuyển sang trạng thái delivered, hiển thị thông báo đặc biệt
             if (newStatus === 'delivered') {
                 toast.success('Đã cập nhật trạng thái đơn hàng thành công!');
-                console.log(`[OrderManagement] Đơn hàng ${orderId} đã được đánh dấu là đã giao, đã kích hoạt bảo hành`);
+                console.log(`[OrderManagement] Đơn hàng ${order._id} đã được đánh dấu là đã giao, đã kích hoạt bảo hành`);
             } else {
                 toast.success('Đã cập nhật trạng thái đơn hàng thành công');
             }
@@ -719,7 +723,7 @@ const OrderManagement = () => {
                                                                         key={nextStatus}
                                                                         className={`order-action-button ${nextStatus === 'cancelled' ? 'order-action-button-danger' : ''}`}
                                                                         onClick={() => {
-                                                                            updateOrderStatus(order._id, nextStatus);
+                                                                            updateOrderStatus(order, nextStatus);
                                                                             setActiveDropdown(null);
                                                                         }}
                                                                     >
@@ -890,7 +894,7 @@ const OrderManagement = () => {
                                 onClick={() => {
                                     const select = document.getElementById('status') as HTMLSelectElement;
                                     const newStatus = select.value;
-                                    updateOrderStatus(selectedOrder._id, newStatus);
+                                    updateOrderStatus(selectedOrder, newStatus);
                                     setModalOpen(false);
                                 }}
                                 className="admin-btn-success"
@@ -1072,4 +1076,4 @@ const OrderManagement = () => {
     );
 };
 
-export default OrderManagement; 
+export default OrderManagement;
