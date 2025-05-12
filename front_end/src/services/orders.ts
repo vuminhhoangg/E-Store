@@ -123,9 +123,37 @@ export const orderAPI = {
         return response.data;
     },
 
-    createWarrantyClaim: async (orderItemId: string, data: { description: string; status: string; images?: string[] }) => {
-        const response = await api.post(`/warranty/claims/order/${orderItemId}`, data, { headers: headers() });
-        return response.data;
+    createWarrantyClaim: async (orderItemId: string, data: {
+        description: string;
+        images?: string[];
+        contactName?: string;
+        contactPhone?: string;
+        contactAddress?: string;
+    }) => {
+        try {
+            console.log('[orderAPI.createWarrantyClaim] Gọi API tạo yêu cầu bảo hành:', {
+                endpoint: `/warranty/claims/order/${orderItemId}`,
+                data: {
+                    ...data,
+                    images: data.images ? `${data.images.length} ảnh` : 'không có ảnh'
+                }
+            });
+
+            const response = await api.post(`/warranty/claims/order/${orderItemId}`, data, { headers: headers() });
+
+            console.log('[orderAPI.createWarrantyClaim] Kết quả API:', {
+                status: response.status,
+                success: response.data?.success,
+                message: response.data?.message,
+                hasData: !!response.data?.data
+            });
+
+            return response.data;
+        } catch (error: any) {
+            console.error('[orderAPI.createWarrantyClaim] Lỗi khi tạo yêu cầu bảo hành:', error.message);
+            console.error('[orderAPI.createWarrantyClaim] Dữ liệu lỗi:', error.response?.data);
+            throw error;
+        }
     },
 
     updateWarrantyStatus: async (claimId: string, status: string, notes?: string) => {
@@ -169,6 +197,56 @@ export const orderAPI = {
             console.error('[orderAPI.getProductsUnderWarranty] Lỗi:', error.message);
             console.error('[orderAPI.getProductsUnderWarranty] Status:', error.response?.status);
             console.error('[orderAPI.getProductsUnderWarranty] Response:', error.response?.data);
+            throw error;
+        }
+    },
+
+    // Lấy đơn hàng đã giao của người dùng hiện tại
+    getUserDeliveredOrders: async () => {
+        try {
+            console.log('[orderAPI.getUserDeliveredOrders] Gọi API lấy đơn hàng đã giao');
+            const response = await api.get('/orders/user/delivered', { headers: headers() });
+            console.log('[orderAPI.getUserDeliveredOrders] Kết quả API:', response.data);
+
+            if (response.data && response.data.data) {
+                console.log('[orderAPI.getUserDeliveredOrders] Số lượng đơn hàng:', response.data.data.length);
+                if (response.data.data.length > 0) {
+                    const firstOrder = response.data.data[0];
+                    console.log('[orderAPI.getUserDeliveredOrders] Đơn hàng đầu tiên:', {
+                        id: firstOrder._id,
+                        hasItems: !!firstOrder.items,
+                        itemsIsArray: Array.isArray(firstOrder.items),
+                        itemsLength: firstOrder.items ? firstOrder.items.length : 0
+                    });
+                }
+            }
+
+            return response.data;
+        } catch (error: any) {
+            console.error('[orderAPI.getUserDeliveredOrders] Lỗi:', error.message);
+            console.error('[orderAPI.getUserDeliveredOrders] Status:', error.response?.status);
+            console.error('[orderAPI.getUserDeliveredOrders] Response:', error.response?.data);
+            throw error;
+        }
+    },
+
+    // Lấy danh sách yêu cầu bảo hành của người dùng hiện tại
+    getUserWarrantyClaims: async () => {
+        try {
+            console.log('[orderAPI.getUserWarrantyClaims] Gọi API lấy yêu cầu bảo hành của người dùng');
+            const response = await api.get('/warranty/my-claims', { headers: headers() });
+
+            console.log('[orderAPI.getUserWarrantyClaims] Kết quả API:', {
+                status: response.status,
+                success: response.data?.success,
+                count: response.data?.data?.length || 0
+            });
+
+            return response.data;
+        } catch (error: any) {
+            console.error('[orderAPI.getUserWarrantyClaims] Lỗi:', error.message);
+            console.error('[orderAPI.getUserWarrantyClaims] Status:', error.response?.status);
+            console.error('[orderAPI.getUserWarrantyClaims] Response:', error.response?.data);
             throw error;
         }
     }

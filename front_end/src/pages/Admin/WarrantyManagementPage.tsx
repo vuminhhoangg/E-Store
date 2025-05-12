@@ -194,18 +194,40 @@ const WarrantyManagementPage: React.FC = () => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'pending':
+            case 'request':
                 return (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                         Đang chờ xử lý
                     </span>
                 );
             case 'under_review':
+                return (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        Đang xem xét
+                    </span>
+                );
             case 'approved':
-            case 'in_progress':
-            case 'processing':
                 return (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Đã duyệt
+                    </span>
+                );
+            case 'sending':
+                return (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                        Đang gửi đi
+                    </span>
+                );
+            case 'received':
+                return (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                        Đã nhận
+                    </span>
+                );
+            case 'processing':
+            case 'in_progress':
+                return (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
                         Đang xử lý
                     </span>
                 );
@@ -423,19 +445,55 @@ const WarrantyManagementPage: React.FC = () => {
                                         Tất cả
                                     </button>
                                     <button
-                                        onClick={() => handleFilter('pending')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'pending'
+                                        onClick={() => handleFilter('request')}
+                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'request'
                                             ? 'bg-yellow-500 text-white'
                                             : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                                             }`}
                                     >
-                                        Đang chờ xử lý
+                                        Yêu cầu mới
                                     </button>
                                     <button
-                                        onClick={() => handleFilter('in_progress')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'in_progress'
+                                        onClick={() => handleFilter('under_review')}
+                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'under_review'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                            }`}
+                                    >
+                                        Đang xem xét
+                                    </button>
+                                    <button
+                                        onClick={() => handleFilter('approved')}
+                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'approved'
                                             ? 'bg-blue-500 text-white'
                                             : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                                            }`}
+                                    >
+                                        Đã duyệt
+                                    </button>
+                                    <button
+                                        onClick={() => handleFilter('sending')}
+                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'sending'
+                                            ? 'bg-indigo-500 text-white'
+                                            : 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
+                                            }`}
+                                    >
+                                        Đang gửi đi
+                                    </button>
+                                    <button
+                                        onClick={() => handleFilter('received')}
+                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'received'
+                                            ? 'bg-teal-500 text-white'
+                                            : 'bg-teal-100 text-teal-800 hover:bg-teal-200'
+                                            }`}
+                                    >
+                                        Đã nhận
+                                    </button>
+                                    <button
+                                        onClick={() => handleFilter('processing')}
+                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'processing'
+                                            ? 'bg-cyan-500 text-white'
+                                            : 'bg-cyan-100 text-cyan-800 hover:bg-cyan-200'
                                             }`}
                                     >
                                         Đang xử lý
@@ -711,10 +769,12 @@ const WarrantyManagementPage: React.FC = () => {
                                                     value={statusUpdate}
                                                     onChange={(e) => setStatusUpdate(e.target.value)}
                                                 >
-                                                    <option value="pending">Đang chờ xử lý</option>
+                                                    <option value="request">Yêu cầu mới</option>
                                                     <option value="under_review">Đang xem xét</option>
-                                                    <option value="approved">Đã chấp nhận</option>
-                                                    <option value="in_progress">Đang sửa chữa</option>
+                                                    <option value="approved">Đã duyệt</option>
+                                                    <option value="sending">Đang gửi đi</option>
+                                                    <option value="received">Đã nhận</option>
+                                                    <option value="processing">Đang xử lý</option>
                                                     <option value="completed">Hoàn thành</option>
                                                     <option value="rejected">Từ chối</option>
                                                 </select>

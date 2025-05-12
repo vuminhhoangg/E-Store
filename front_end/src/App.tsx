@@ -26,6 +26,9 @@ import WarrantyManagementPage from './pages/Admin/WarrantyManagementPage'
 import WarrantyClaimDetailPage from './pages/Admin/WarrantyClaimDetailPage'
 import OrderSuccessPage from "./pages/OrderSuccessPage.tsx";
 import UserOrders from './pages/UserOrders'
+import WarrantyRequestPage from './pages/WarrantyRequestPage'
+import WarrantySuccessPage from './pages/WarrantySuccessPage'
+import WarrantyHistoryPage from './pages/WarrantyHistoryPage'
 
 const AppContent = () => {
   const location = useLocation();
@@ -105,6 +108,21 @@ const AppContent = () => {
           <Route path="orders" element={
             <ProtectedRoute>
               <UserOrders />
+            </ProtectedRoute>
+          } />
+          <Route path="warranty-request" element={
+            <ProtectedRoute>
+              <WarrantyRequestPage />
+            </ProtectedRoute>
+          } />
+          <Route path="warranty-success" element={
+            <ProtectedRoute>
+              <WarrantySuccessPage />
+            </ProtectedRoute>
+          } />
+          <Route path="warranty-history" element={
+            <ProtectedRoute>
+              <WarrantyHistoryPage />
             </ProtectedRoute>
           } />
 

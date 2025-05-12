@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect, admin } from '../middleware/authMiddleware.js';
-import { getAllOrders, getOrderById, updateOrderStatus, createOrder, getUserOrders, startOrderWarranty } from '../controllers/orderController.js'
+import { getAllOrders, getOrderById, updateOrderStatus, createOrder, getUserOrders, startOrderWarranty, getUserDeliveredOrders } from '../controllers/orderController.js'
 
 const router = express.Router();
 
@@ -24,5 +24,7 @@ router.route('/:id/status')
 // Kích hoạt bảo hành cho đơn hàng
 router.route('/:id/warranty/start')
     .put(protect, admin, startOrderWarranty);
+
+router.get('/user/delivered', protect, getUserDeliveredOrders);
 
 export default router;

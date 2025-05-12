@@ -55,10 +55,6 @@ const warrantyClaimSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        contactEmail: {
-            type: String,
-            required: true
-        },
         contactAddress: {
             type: String,
             required: true

@@ -238,6 +238,9 @@ const Header = () => {
                                             <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-300">
                                                 Đơn hàng của tôi
                                             </Link>
+                                            <Link to="/warranty-request" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-300">
+                                                Yêu cầu bảo hành
+                                            </Link>
                                             <Link to="/change-password" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-300">
                                                 Đổi mật khẩu
                                             </Link>
@@ -407,6 +410,12 @@ const Header = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
                                 <span>Đơn hàng của tôi</span>
+                            </Link>
+                            <Link to="/warranty-request" className="flex items-center py-2 pl-2 text-gray-900 hover:text-blue-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Yêu cầu bảo hành</span>
                             </Link>
                             <Link to="/change-password" className="flex items-center py-2 pl-2 text-gray-900 hover:text-blue-600">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

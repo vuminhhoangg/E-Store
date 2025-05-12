@@ -257,10 +257,21 @@ const UserOrders: React.FC = () => {
     }
 
     return (
-        <div className="container mx-auto px-4 py-12 max-w-6xl">
-            <h1 className="text-3xl font-bold text-gray-800 mb-8 relative">
-                <span className="inline-block pb-2 border-b-4 border-blue-500">Đơn hàng của tôi</span>
-            </h1>
+        <div className="container mx-auto px-4 py-8">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">Đơn hàng của tôi</h1>
+                <div className="space-x-2">
+                    <Link
+                        to="/warranty-request"
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Yêu cầu bảo hành
+                    </Link>
+                </div>
+            </div>
 
             {orders.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-lg p-12 text-center">

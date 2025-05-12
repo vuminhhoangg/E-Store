@@ -1,6 +1,7 @@
 import Order from '../models/Order.js';
 import mongoose from 'mongoose';
 import Warranty from '../models/Warranty.js';
+import Product from '../models/Product.js';
 
 // Tạo đơn hàng mới
 export const createOrder = async (req, res) => {
@@ -519,6 +520,133 @@ export const startOrderWarranty = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: `Đã xảy ra lỗi khi kích hoạt bảo hành: ${error.message}`
+        });
+    }
+};
+
+// Lấy danh sách đơn hàng đã giao của người dùng hiện tại
+export const getUserDeliveredOrders = async (req, res) => {
+    try {
+        // Lấy id của người dùng từ request (đã xác thực JWT)
+        const userId = req.user._id;
+        console.log(`[OrderController] Đang lấy đơn hàng đã giao của người dùng: ${userId}`);
+
+        // Tìm các đơn hàng đã giao của người dùng
+        const orders = await Order.find({
+            userId: userId,
+            status: 'delivered'
+        })
+            .populate('items.productId', 'name image warrantyPeriodMonths')
+            .sort({ deliveredAt: -1 });
+
+        console.log(`[OrderController] Số lượng đơn hàng đã giao: ${orders ? orders.length : 0}`);
+
+        if (!orders || orders.length === 0) {
+            console.log(`[OrderController] Không tìm thấy đơn hàng đã giao nào của người dùng ${userId}`);
+            return res.status(200).json({
+                success: true,
+                count: 0,
+                data: []
+            });
+        }
+
+        // Biến đổi dữ liệu đơn hàng để phù hợp với frontend
+        const transformedOrders = await Promise.all(orders.map(async (order, index) => {
+            console.log(`[OrderController] Xử lý đơn hàng thứ ${index + 1}/${orders.length}, ID: ${order._id}`);
+            console.log(`[OrderController] Kiểm tra items của đơn hàng: ${order.items ? 'Có items' : 'Không có items'}`);
+            console.log(`[OrderController] Số lượng items: ${order.items ? order.items.length : 0}`);
+
+            // Đảm bảo order.items là một mảng
+            if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
+                console.log(`[OrderController] Đơn hàng ${order._id} không có items hoặc items không phải là mảng`);
+                return {
+                    _id: order._id,
+                    orderNumber: order.orderNumber,
+                    items: [],
+                    totalAmount: order.totalPrice || 0,
+                    status: order.status,
+                    paymentMethod: order.paymentMethod,
+                    createdAt: order.createdAt,
+                    deliveredAt: order.deliveredAt,
+                    shippingAddress: order.shippingAddress || null
+                };
+            }
+
+            // Xử lý các sản phẩm trong đơn hàng
+            const transformedItems = await Promise.all(order.items.map(async (item, itemIndex) => {
+                if (!item) {
+                    console.log(`[OrderController] Item thứ ${itemIndex + 1} của đơn hàng ${order._id} là null hoặc undefined`);
+                    return null;
+                }
+
+                // Lấy thông tin sản phẩm
+                let product = null;
+                try {
+                    if (item.productId) {
+                        // Nếu productId là ObjectId
+                        if (mongoose.Types.ObjectId.isValid(item.productId)) {
+                            product = await Product.findById(item.productId).select('name image warrantyPeriodMonths');
+                        }
+                        // Nếu productId là đối tượng đã populate
+                        else if (typeof item.productId === 'object' && item.productId !== null) {
+                            product = item.productId;
+                        }
+                    }
+                } catch (err) {
+                    console.error(`[OrderController] Lỗi khi tìm sản phẩm ${item.productId}: ${err.message}`);
+                }
+
+                // Lấy thông tin bảo hành từ product nếu có
+                const warrantyPeriodMonths = product?.warrantyPeriodMonths || item.warrantyPeriodMonths || 0;
+
+                return {
+                    _id: item._id || `temp_id_${itemIndex}`,
+                    productId: typeof item.productId === 'object' ? item.productId?._id : item.productId,
+                    name: item.name || product?.name || 'Sản phẩm không xác định',
+                    price: item.price || 0,
+                    quantity: item.quantity || 1,
+                    image: product?.image || item.image || null,
+                    warrantyPeriodMonths: warrantyPeriodMonths,
+                    serialNumber: item.serialNumber || null,
+                    warrantyStartDate: item.warrantyStartDate || null,
+                    warrantyEndDate: item.warrantyEndDate || null
+                };
+            }));
+
+            // Lọc bỏ các item null
+            const filteredItems = transformedItems.filter(item => item !== null);
+            console.log(`[OrderController] Số lượng items sau khi xử lý: ${filteredItems.length}`);
+
+            // Kiểm tra sản phẩm có bảo hành
+            const warrantyItems = filteredItems.filter(item => item.warrantyPeriodMonths > 0);
+            console.log(`[OrderController] Số lượng sản phẩm có bảo hành trong đơn hàng ${order._id}: ${warrantyItems.length}`);
+
+            return {
+                _id: order._id,
+                orderNumber: order.orderNumber,
+                items: filteredItems,
+                totalAmount: order.totalPrice || 0,
+                status: order.status,
+                paymentMethod: order.paymentMethod,
+                createdAt: order.createdAt,
+                deliveredAt: order.deliveredAt,
+                shippingAddress: order.shippingAddress || null
+            };
+        }));
+
+        console.log(`[OrderController] Đã xử lý xong ${transformedOrders.length} đơn hàng để trả về cho người dùng ${userId}`);
+
+        return res.status(200).json({
+            success: true,
+            count: transformedOrders.length,
+            data: transformedOrders
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách đơn hàng đã giao của người dùng:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi, không thể lấy danh sách đơn hàng đã giao',
+            error: error.message
         });
     }
 }; 

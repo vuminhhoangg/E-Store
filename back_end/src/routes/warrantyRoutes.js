@@ -17,10 +17,15 @@ router
     .get(protect, admin, warrantyController.getAllProductsUnderWarranty);
 
 // 2. Routes cho warranty claims - từ cụ thể nhất đến chung nhất 
-// 2.1 GET /warranty/claims - Lấy tất cả yêu cầu bảo hành  
+// 2.1 GET /warranty/claims - Lấy tất cả yêu cầu bảo hành cho admin 
 router
     .route('/claims')
     .get(protect, admin, warrantyController.getAllWarrantyClaims);
+
+// 2.1.5 Route để lấy yêu cầu bảo hành của user hiện tại
+router
+    .route('/my-claims')
+    .get(protect, warrantyController.getUserWarrantyClaims);
 
 // 2.2 POST /warranty/claims/order/:orderItemId - Tạo yêu cầu bảo hành mới cho một item
 router
