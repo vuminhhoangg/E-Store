@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import httpStatus from 'http-status';
 import bcrypt from 'bcryptjs';
-import { generateToken } from '../utils/jwtUtils.js';
+import { generateToken } from '../utils/jwt.js';
 
 // @desc    Đăng ký người dùng mới
 // @route   POST /api/users
@@ -129,10 +129,20 @@ const authUser = asyncHandler(async (req, res) => {
 const logoutUser = asyncHandler(async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (token) {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id);
-        if (user) {
-            await user.invalidateToken(token);
+        try {
+            const { invalidateToken } = await import('../utils/jwt.js');
+            // Invalidate the token in our JWT blacklist
+            invalidateToken(token);
+
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const user = await User.findById(decoded.id);
+            if (user) {
+                // Also invalidate in user's token list if needed
+                await user.invalidateToken(token);
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+            // Continue with logout even if there's an error
         }
     }
     return res.status(httpStatus.OK).json({ message: 'Đăng xuất thành công' });
@@ -265,16 +275,18 @@ const removeUserDevice = asyncHandler(async (req, res) => {
 // @route   POST /api/users/refresh-token
 // @access  Public
 const refreshToken = asyncHandler(async (req, res) => {
-    const { refreshToken } = req.body;
+    const { refreshToken: token } = req.body;
 
-    if (!refreshToken) {
+    if (!token) {
         return res.status(httpStatus.BAD_REQUEST).json({
             message: 'Refresh token không được cung cấp'
         });
     }
 
     try {
-        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        // Import JWT utilities
+        const { verifyRefreshToken, generateTokens, invalidateToken } = await import('../utils/jwt.js');
+        const decoded = verifyRefreshToken(token);
         const user = await User.findById(decoded.id);
 
         if (!user) {
@@ -290,33 +302,28 @@ const refreshToken = asyncHandler(async (req, res) => {
         }
 
         // Kiểm tra xem refresh token có bị vô hiệu hóa không
-        if (user.isTokenInvalid(refreshToken)) {
+        if (user.isTokenInvalid(token)) {
             return res.status(httpStatus.UNAUTHORIZED).json({
                 message: 'Refresh token đã bị vô hiệu hóa'
             });
         }
 
-        // Tạo token mới
-        const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_ACCESS_EXPIRES_IN
-        });
-
-        // Tạo refresh token mới
-        const newRefreshToken = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, {
-            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
-        });
+        // Tạo token mới với thông tin thiết bị
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+        const tokens = generateTokens(user._id, { userAgent, clientIp });
 
         // Vô hiệu hóa refresh token cũ
-        await user.invalidateToken(refreshToken);
+        invalidateToken(token);
+        await user.invalidateToken(token);
 
         // Cập nhật thời gian làm mới token
         user.lastTokenRefresh = Date.now();
         await user.save();
 
         return res.status(httpStatus.OK).json({
-            accessToken,
-            refreshToken: newRefreshToken,
-            expiresIn: parseInt(process.env.JWT_ACCESS_EXPIRES_IN) * 1000
+            tokens,
+            expiresIn: tokens.expiresIn
         });
 
     } catch (error) {

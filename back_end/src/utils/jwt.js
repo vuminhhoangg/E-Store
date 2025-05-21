@@ -7,8 +7,9 @@ dotenv.config();
 // Sử dụng các biến môi trường giống với phần còn lại của ứng dụng
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-const JWT_ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '15m';
+const JWT_ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '3h'; // Changed to 3 hours
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+const JWT_SIMPLE_EXPIRES_IN = '90d'; // Simple token expires in 90 days
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Danh sách để theo dõi các token đã bị vô hiệu hóa (blacklist)
@@ -18,6 +19,27 @@ const tokenBlacklist = new Set();
 // Hàm tạo token ngẫu nhiên
 const generateTokenId = () => {
     return crypto.randomBytes(16).toString('hex');
+};
+
+// Tạo JWT token đơn giản (trước đây là từ jwtUtils.js)
+export const generateToken = (id) => {
+    return jwt.sign({ id }, JWT_SECRET, {
+        expiresIn: JWT_SIMPLE_EXPIRES_IN,
+    });
+};
+
+// Xác thực JWT token đơn giản (trước đây là từ jwtUtils.js)
+export const verifyToken = (token) => {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return { valid: true, expired: false, decoded };
+    } catch (error) {
+        return {
+            valid: false,
+            expired: error.message === 'jwt expired',
+            decoded: null
+        };
+    }
 };
 
 export const generateTokens = (userId, deviceInfo = {}) => {

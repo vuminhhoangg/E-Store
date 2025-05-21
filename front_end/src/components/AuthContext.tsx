@@ -132,7 +132,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 ...userInfo,
                 accessToken: refreshResponse.accessToken,
                 refreshToken: refreshResponse.refreshToken,
-                expiresAt: tokenExpiresAt
+                expiresAt: tokenExpiresAt,
+                lastActivityUpdate: Date.now() // Thêm thời gian hoạt động cuối cùng khi làm mới token
             };
 
             saveUserInfoToStorage(updatedUserInfo, isRemembered);
@@ -221,15 +222,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             const timeToExpire = userInfo.expiresAt - Date.now();
             if (timeToExpire < 5 * 60 * 1000) {
+                console.log('Token sắp hết hạn, đang làm mới...');
                 handleTokenRefresh().catch(console.error);
             }
-        }, 5 * 60 * 1000); // 5 phút
+        }, 5 * 60 * 1000); // 5 phút - giữ nguyên theo yêu cầu
 
         // Theo dõi hoạt động người dùng
         const updateActivity = () => {
             const now = Date.now();
-            if (now - lastActivity > 60 * 1000 && isMounted) {
+            if (now - lastActivity > 60 * 1000 && isMounted) { // Nếu đã qua 60 giây kể từ hoạt động cuối
                 setLastActivity(now);
+
+                // Tự động làm mới phiên khi có hoạt động
+                if (isLoggedIn) {
+                    console.log('Người dùng đang hoạt động, làm mới phiên...');
+                    refreshSession();
+                }
             }
         }
 
@@ -253,13 +261,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const isRemembered = localStorage.getItem('userInfo') !== null;
             const sessionTimeout = isRemembered ? REMEMBER_TIMEOUT : SESSION_TIMEOUT;
 
+            // Kiểm tra xem người dùng có phải admin không
+            const isAdmin = userInfo.user?.isAdmin === true;
+
             // Kiểm tra thời gian từ lần cập nhật cuối
             const shouldUpdateActivity =
                 !userInfo.lastActivityUpdate ||
-                (now - userInfo.lastActivityUpdate) > 60 * 1000;
+                (now - userInfo.lastActivityUpdate) > (isAdmin ? 30 * 1000 : 60 * 1000); // Giảm thời gian cho admin
 
-            // Chỉ cập nhật khi cần thiết
-            if (shouldUpdateActivity) {
+            // Kiểm tra token còn bao lâu sẽ hết hạn
+            const timeToExpire = userInfo.expiresAt - now;
+            const shouldRefreshToken = timeToExpire < 30 * 60 * 1000; // Làm mới token nếu còn dưới 30 phút
+
+            // Chỉ cập nhật khi cần thiết hoặc là admin
+            if (shouldUpdateActivity || isAdmin) {
                 const updatedUserInfo = {
                     ...userInfo,
                     lastActivityUpdate: now,
@@ -267,19 +282,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 };
 
                 saveUserInfoToStorage(updatedUserInfo, isRemembered);
-                console.log('Session updated at:', new Date(now).toLocaleString());
+                console.log('Phiên làm việc đã được làm mới lúc:', new Date(now).toLocaleString());
+
+                // Nếu là admin, thường xuyên xác thực trạng thái admin
+                if (isAdmin && !adminVerified) {
+                    console.log('Đang xác thực quyền admin...');
+                    verifyAdminOnce().catch(console.error);
+                }
             }
 
-            // Xử lý refresh token riêng biệt
-            if (userInfo.expiresAt - now < 5 * 60 * 1000) {
-                console.log('Refreshing token...');
+            // Ưu tiên làm mới token cho admin hoặc khi token sắp hết hạn
+            if ((isAdmin && shouldUpdateActivity) || shouldRefreshToken) {
+                console.log('Đang làm mới token...');
                 await handleTokenRefresh();
             }
         } catch (error) {
             console.error('Session refresh error:', error);
         }
     };
-
 
     const login = async (phoneNumber: string, password: string, rememberMe = false) => {
         try {
@@ -359,7 +379,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             throw new Error(error.response?.data?.message || error.message || 'Đăng nhập thất bại');
         }
     };
-
 
     const logout = () => {
         try {
@@ -479,8 +498,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             throw new Error('Đăng ký không thành công. Vui lòng thử lại sau.');
         }
     };
-
-
 
     // Phương thức xác thực quyền admin một lần duy nhất
     const verifyAdminOnce = async (): Promise<boolean> => {

@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
+import { verifyAccessToken, verifyToken } from '../utils/jwt.js';
 
 // Middleware bảo vệ các route, yêu cầu user đã đăng nhập
 export const protect = async (req, res, next) => {
@@ -26,9 +27,15 @@ export const protect = async (req, res, next) => {
                     });
                 }
 
-                // Verify token
+                // Verify token using verifyToken function which works with simple tokens
                 console.log('Verifying token...');
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const result = verifyToken(token);
+
+                if (!result.valid) {
+                    throw new Error(result.expired ? 'Token đã hết hạn' : 'Token không hợp lệ');
+                }
+
+                const decoded = result.decoded;
                 console.log('Token verified successfully for user:', decoded.id);
 
                 // Tìm user theo id từ token và không trả về password
@@ -133,9 +140,21 @@ export const authenticateJWT = async (req, res, next) => {
 
         const token = authHeader.split(' ')[1];
 
-        // Xác thực token
+        // Xác thực token sử dụng module JWT đã hợp nhất
         try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            // Thử xác thực token access hoặc token đơn giản
+            let decoded;
+            try {
+                // Thử xác thực là access token (có type và jti)
+                decoded = verifyAccessToken(token);
+            } catch (error) {
+                // Nếu không phải access token, thử xác thực là token đơn giản
+                const result = verifyToken(token);
+                if (!result.valid) {
+                    throw new Error(result.expired ? 'Token đã hết hạn' : 'Token không hợp lệ');
+                }
+                decoded = result.decoded;
+            }
 
             // Tìm user từ ID đã giải mã
             const user = await User.findById(decoded.id).select('-password');

@@ -416,47 +416,92 @@ const WarrantyManagementPage: React.FC = () => {
                     </table>
                 </div>
 
-                {/* Phân trang */}
+                {/* Pagination for Products */}
                 {productsTotalPages > 1 && (
-                    <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-gray-700">
-                                    Trang <span className="font-medium">{productsPage}</span> / <span className="font-medium">{productsTotalPages}</span>
-                                </p>
-                            </div>
-                            <div>
-                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                    <button
-                                        onClick={() => handleProductsPageChange(Math.max(1, productsPage - 1))}
-                                        disabled={productsPage === 1}
-                                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${productsPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        Trước
-                                    </button>
-                                    {[...Array(productsTotalPages)].map((_, i) => (
+                    <div className="p-4 border-t border-gray-200">
+                        <div className="admin-pagination">
+                            <button
+                                onClick={() => handleProductsPageChange(Math.max(1, productsPage - 1))}
+                                disabled={productsPage === 1}
+                                className={`admin-pagination-item ${productsPage === 1 ? 'text-gray-400 cursor-not-allowed' : ''}`}
+                            >
+                                Trước
+                            </button>
+                            {(() => {
+                                // Hiển thị giới hạn 5 trang, với trang hiện tại ở giữa nếu có thể
+                                const pageButtons = [];
+                                let startPage = Math.max(1, productsPage - 2);
+                                let endPage = Math.min(productsTotalPages, startPage + 4);
+
+                                // Điều chỉnh nếu không đủ trang ở phía sau
+                                if (endPage - startPage < 4) {
+                                    startPage = Math.max(1, endPage - 4);
+                                }
+
+                                // Hiển thị nút trang đầu tiên nếu không bắt đầu từ trang 1
+                                if (startPage > 1) {
+                                    pageButtons.push(
+                                        <button
+                                            key={1}
+                                            onClick={() => handleProductsPageChange(1)}
+                                            className={`admin-pagination-item ${1 === productsPage ? 'active' : ''}`}
+                                        >
+                                            1
+                                        </button>
+                                    );
+                                    // Hiển thị dấu ... nếu không bắt đầu từ trang 2
+                                    if (startPage > 2) {
+                                        pageButtons.push(
+                                            <span key="start-ellipsis" className="px-3 py-1 text-gray-500">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+                                }
+
+                                // Hiển thị các trang trong khoảng
+                                for (let i = startPage; i <= endPage; i++) {
+                                    pageButtons.push(
                                         <button
                                             key={i}
-                                            onClick={() => handleProductsPageChange(i + 1)}
-                                            className={`relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${productsPage === i + 1
-                                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                                : 'text-gray-500 hover:bg-gray-50'
-                                                }`}
+                                            onClick={() => handleProductsPageChange(i)}
+                                            className={`admin-pagination-item ${i === productsPage ? 'active' : ''}`}
                                         >
-                                            {i + 1}
+                                            {i}
                                         </button>
-                                    ))}
-                                    <button
-                                        onClick={() => handleProductsPageChange(Math.min(productsTotalPages, productsPage + 1))}
-                                        disabled={productsPage === productsTotalPages}
-                                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${productsPage === productsTotalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        Sau
-                                    </button>
-                                </nav>
-                            </div>
+                                    );
+                                }
+
+                                // Hiển thị nút trang cuối cùng nếu không kết thúc ở trang cuối
+                                if (endPage < productsTotalPages) {
+                                    // Hiển thị dấu ... nếu không kết thúc ở trang áp chót
+                                    if (endPage < productsTotalPages - 1) {
+                                        pageButtons.push(
+                                            <span key="end-ellipsis" className="px-3 py-1 text-gray-500">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+                                    pageButtons.push(
+                                        <button
+                                            key={productsTotalPages}
+                                            onClick={() => handleProductsPageChange(productsTotalPages)}
+                                            className={`admin-pagination-item ${productsTotalPages === productsPage ? 'active' : ''}`}
+                                        >
+                                            {productsTotalPages}
+                                        </button>
+                                    );
+                                }
+
+                                return pageButtons;
+                            })()}
+                            <button
+                                onClick={() => handleProductsPageChange(Math.min(productsTotalPages, productsPage + 1))}
+                                disabled={productsPage === productsTotalPages}
+                                className={`admin-pagination-item ${productsPage === productsTotalPages ? 'text-gray-400 cursor-not-allowed' : ''}`}
+                            >
+                                Sau
+                            </button>
                         </div>
                     </div>
                 )}
@@ -700,77 +745,94 @@ const WarrantyManagementPage: React.FC = () => {
 
                         {/* Pagination */}
                         {claimsTotalPages > 1 && (
-                            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
-                                <div className="flex-1 flex justify-between sm:hidden">
+                            <div className="p-4 border-t border-gray-200">
+                                <div className="admin-pagination">
                                     <button
                                         onClick={() => handleClaimsPageChange(Math.max(1, claimsPage - 1))}
                                         disabled={claimsPage === 1}
-                                        className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${claimsPage === 1
-                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                                            }`}
+                                        className={`admin-pagination-item ${claimsPage === 1 ? 'text-gray-400 cursor-not-allowed' : ''}`}
                                     >
-                                        Trước
+                                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
                                     </button>
+                                    {(() => {
+                                        // Hiển thị giới hạn 5 trang, với trang hiện tại ở giữa nếu có thể
+                                        const pageButtons = [];
+                                        let startPage = Math.max(1, claimsPage - 2);
+                                        let endPage = Math.min(claimsTotalPages, startPage + 4);
+
+                                        // Điều chỉnh nếu không đủ trang ở phía sau
+                                        if (endPage - startPage < 4) {
+                                            startPage = Math.max(1, endPage - 4);
+                                        }
+
+                                        // Hiển thị nút trang đầu tiên nếu không bắt đầu từ trang 1
+                                        if (startPage > 1) {
+                                            pageButtons.push(
+                                                <button
+                                                    key={1}
+                                                    onClick={() => handleClaimsPageChange(1)}
+                                                    className={`admin-pagination-item ${1 === claimsPage ? 'active' : ''}`}
+                                                >
+                                                    1
+                                                </button>
+                                            );
+                                            // Hiển thị dấu ... nếu không bắt đầu từ trang 2
+                                            if (startPage > 2) {
+                                                pageButtons.push(
+                                                    <span key="start-ellipsis" className="px-3 py-1 text-gray-500">
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
+                                        }
+
+                                        // Hiển thị các trang trong khoảng
+                                        for (let i = startPage; i <= endPage; i++) {
+                                            pageButtons.push(
+                                                <button
+                                                    key={i}
+                                                    onClick={() => handleClaimsPageChange(i)}
+                                                    className={`admin-pagination-item ${i === claimsPage ? 'active' : ''}`}
+                                                >
+                                                    {i}
+                                                </button>
+                                            );
+                                        }
+
+                                        // Hiển thị nút trang cuối cùng nếu không kết thúc ở trang cuối
+                                        if (endPage < claimsTotalPages) {
+                                            // Hiển thị dấu ... nếu không kết thúc ở trang áp chót
+                                            if (endPage < claimsTotalPages - 1) {
+                                                pageButtons.push(
+                                                    <span key="end-ellipsis" className="px-3 py-1 text-gray-500">
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
+                                            pageButtons.push(
+                                                <button
+                                                    key={claimsTotalPages}
+                                                    onClick={() => handleClaimsPageChange(claimsTotalPages)}
+                                                    className={`admin-pagination-item ${claimsTotalPages === claimsPage ? 'active' : ''}`}
+                                                >
+                                                    {claimsTotalPages}
+                                                </button>
+                                            );
+                                        }
+
+                                        return pageButtons;
+                                    })()}
                                     <button
                                         onClick={() => handleClaimsPageChange(Math.min(claimsTotalPages, claimsPage + 1))}
                                         disabled={claimsPage === claimsTotalPages}
-                                        className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${claimsPage === claimsTotalPages
-                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                                            }`}
+                                        className={`admin-pagination-item ${claimsPage === claimsTotalPages ? 'text-gray-400 cursor-not-allowed' : ''}`}
                                     >
-                                        Sau
+                                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                        </svg>
                                     </button>
-                                </div>
-                                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                    <div>
-                                        <p className="text-sm text-gray-700">
-                                            Hiển thị <span className="font-medium">{claims.length}</span> kết quả
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                            <button
-                                                onClick={() => handleClaimsPageChange(Math.max(1, claimsPage - 1))}
-                                                disabled={claimsPage === 1}
-                                                className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 text-sm font-medium ${claimsPage === 1
-                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                <span className="sr-only">Trước</span>
-                                                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </button>
-                                            {Array.from({ length: claimsTotalPages }, (_, i) => i + 1).map((page) => (
-                                                <button
-                                                    key={page}
-                                                    onClick={() => handleClaimsPageChange(page)}
-                                                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === claimsPage
-                                                        ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                                                        }`}
-                                                >
-                                                    {page}
-                                                </button>
-                                            ))}
-                                            <button
-                                                onClick={() => handleClaimsPageChange(Math.min(claimsTotalPages, claimsPage + 1))}
-                                                disabled={claimsPage === claimsTotalPages}
-                                                className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 text-sm font-medium ${claimsPage === claimsTotalPages
-                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                <span className="sr-only">Sau</span>
-                                                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </button>
-                                        </nav>
-                                    </div>
                                 </div>
                             </div>
                         )}

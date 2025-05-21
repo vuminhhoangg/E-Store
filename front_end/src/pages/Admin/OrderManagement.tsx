@@ -2,7 +2,8 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import AdminModal from '../../components/AdminModal';
-import {warrantyAPI} from "../../services/warranty.ts";
+import { warrantyAPI } from "../../services/warranty.ts";
+import '../../styles/AdminStyles.css';
 
 // Định nghĩa interfaces
 interface OrderStatus {
@@ -360,7 +361,7 @@ const OrderManagement = () => {
             const response = await axios.put(`/api/orders/${order._id}/status`, { status: newStatus }, config);
             const customerId = order.user._id;
             if (newStatus === 'delivered') {
-                await Promise.all( order.items.map((item) => warrantyAPI.createWarranty({productId: item.productId,customerId: customerId}) ) );
+                await Promise.all(order.items.map((item) => warrantyAPI.createWarranty({ productId: item.productId, customerId: customerId })));
             }
 
             // Cập nhật UI cho danh sách đơn hàng
@@ -527,7 +528,7 @@ const OrderManagement = () => {
                                     </svg>
                                 ) : (
                                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0118 0z" />
                                     </svg>
                                 )}
                             </div>
