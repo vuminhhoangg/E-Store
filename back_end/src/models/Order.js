@@ -200,27 +200,32 @@ orderSchema.pre('save', async function (next) {
     next();
 });
 
-// Cập nhật các trường thời gian bảo hành khi kích hoạt
+// Phương thức kích hoạt bảo hành
 orderSchema.methods.activateWarranty = function () {
+    if (this.warrantyActivated) {
+        console.log('[Order.activateWarranty] Bảo hành đã được kích hoạt trước đó');
+        return;
+    }
+
+    console.log(`[Order.activateWarranty] Kích hoạt bảo hành cho đơn hàng ${this._id}`);
+
     // Sử dụng thời gian giao hàng thành công thay vì thời gian hiện tại
     const currentDate = this.deliveredAt ? new Date(this.deliveredAt) : new Date();
 
+    // Thiết lập trạng thái kích hoạt bảo hành
     this.warrantyActivated = true;
     this.warrantyStartDate = currentDate;
 
-    console.log(`[Order] Kích hoạt bảo hành cho đơn hàng ${this._id}, thời điểm bắt đầu bảo hành: ${currentDate}`);
-
-    // Cập nhật thời gian bảo hành cho từng sản phẩm
-    this.items.forEach(item => {
+    // Đặt thời gian bảo hành cho từng sản phẩm
+    for (const item of this.items) {
         if (item.warrantyPeriodMonths > 0) {
+            // Thiết lập thời gian bảo hành
             item.warrantyStartDate = currentDate;
-
-            // Tính ngày kết thúc bảo hành
             const endDate = new Date(currentDate);
             endDate.setMonth(endDate.getMonth() + item.warrantyPeriodMonths);
             item.warrantyEndDate = endDate;
 
-            console.log(`[Order] Sản phẩm ${item.name}: Thời gian bảo hành ${item.warrantyPeriodMonths} tháng, từ ${currentDate.toISOString()} đến ${endDate.toISOString()}`);
+            console.log(`[Order.activateWarranty] Kích hoạt bảo hành cho ${item.name}, thời hạn: ${item.warrantyPeriodMonths} tháng (${currentDate.toISOString()} - ${endDate.toISOString()})`);
 
             // Tạo mã serial nếu chưa có
             if (!item.serialNumber) {
@@ -229,9 +234,14 @@ orderSchema.methods.activateWarranty = function () {
                 const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
                 const random = Math.floor(Math.random() * 900000 + 100000).toString();
                 item.serialNumber = `ES${year}${month}${random}`;
+                console.log(`[Order.activateWarranty] Tạo mã serial cho sản phẩm: ${item.serialNumber}`);
             }
+        } else {
+            console.log(`[Order.activateWarranty] Sản phẩm ${item.name} không có thời gian bảo hành`);
         }
-    });
+    }
+
+    console.log(`[Order.activateWarranty] Hoàn tất kích hoạt bảo hành cho đơn hàng ${this._id}`);
 };
 
 // Thêm phương thức để cập nhật trạng thái và lưu lịch sử

@@ -156,19 +156,137 @@ export const orderAPI = {
         }
     },
 
-    updateWarrantyStatus: async (claimId: string, status: string, notes?: string) => {
-        const response = await api.put(`/warranty/claims/${claimId}`, { status, notes }, { headers: headers() });
-        return response.data;
+    editWarranty: async (payload: any) => {
+        try {
+            console.log('[orderAPI.editWarranty] Gọi API chỉnh sửa bảo hành:', {
+                endpoint: `/warranty/${payload.id}`,
+                data: payload
+            });
+
+            const response = await api.put(`/warranty/${payload.id}`, payload, { headers: headers() });
+
+            console.log('[orderAPI.editWarranty] Kết quả API:', {
+                status: response.status,
+                data: response.data
+            });
+
+            // Đảm bảo dữ liệu trả về đúng định dạng
+            if (response.data && !response.data.success) {
+                return {
+                    success: true,
+                    data: response.data,
+                    message: 'Cập nhật bảo hành thành công'
+                };
+            }
+
+            return response.data;
+        }
+        catch (error: any) {
+            console.error('[orderAPI.editWarranty] Lỗi khi chỉnh sửa bảo hành:', error.message);
+            console.error('[orderAPI.editWarranty] Chi tiết lỗi:', error.response?.data);
+            throw error;
+        }
+    },
+
+    updateWarrantyStatus: async (warrantyId: string, status: string, responseMessage?: string, additionalData?: {
+        price?: number;
+        responseMessage?: string;
+        method?: string;
+    }) => {
+        try {
+            console.log('[orderAPI.updateWarrantyStatus] Cập nhật trạng thái bảo hành:', {
+                id: warrantyId,
+                status: status
+            });
+
+            // Chuẩn bị dữ liệu để gửi lên
+            const updateData: {
+                status: string;
+                responseMessage?: string;
+                price?: number;
+                method?: string;
+            } = { status };
+
+            // Thêm responseMessage nếu có
+            if (responseMessage) {
+                updateData.responseMessage = responseMessage;
+            }
+
+            // Thêm dữ liệu bổ sung nếu có
+            if (additionalData) {
+                // Đảm bảo giá trị price được xử lý đúng, kể cả khi giá trị là 0
+                if (additionalData.price !== undefined) {
+                    updateData.price = additionalData.price; // Giữ nguyên giá trị, kể cả khi là 0
+                }
+                if (additionalData.responseMessage !== undefined) {
+                    updateData.responseMessage = additionalData.responseMessage;
+                }
+                if (additionalData.method !== undefined) {
+                    updateData.method = additionalData.method;
+                }
+            }
+
+            const response = await api.put(`/warranty/${warrantyId}`,
+                updateData,
+                { headers: headers() }
+            );
+
+            // Chuẩn hóa cấu trúc phản hồi để đảm bảo tính nhất quán
+            let standardizedResponse;
+
+            // Kiểm tra xem response.data có đúng cấu trúc không
+            if (response.data) {
+                if (response.data.success === true) {
+                    // Trường hợp response đã có cấu trúc đúng {success: true, data: ...}
+                    standardizedResponse = response.data;
+                } else if (response.data._id) {
+                    // Trường hợp response trả về trực tiếp dữ liệu warranty, không có wrapper
+                    standardizedResponse = {
+                        success: true,
+                        data: response.data,
+                        message: 'Cập nhật trạng thái bảo hành thành công'
+                    };
+                } else if (response.data.data && response.data.data._id) {
+                    // Trường hợp response có cấu trúc {data: warranty} nhưng không có success
+                    standardizedResponse = {
+                        success: true,
+                        data: response.data.data,
+                        message: response.data.message || 'Cập nhật trạng thái bảo hành thành công'
+                    };
+                } else {
+                    // Trường hợp không rõ cấu trúc, giả định thành công nếu status 200
+                    standardizedResponse = {
+                        success: response.status >= 200 && response.status < 300,
+                        data: response.data,
+                        message: response.data.message || 'Kết quả không xác định'
+                    };
+                }
+            } else {
+                // Không có dữ liệu trả về
+                standardizedResponse = {
+                    success: false,
+                    data: null,
+                    message: 'Không nhận được dữ liệu từ API'
+                };
+            }
+
+            return standardizedResponse;
+        } catch (error: any) {
+            console.error('[orderAPI.updateWarrantyStatus] Lỗi khi cập nhật trạng thái:', error.message);
+            throw error;
+        }
     },
 
     getAllWarrantyClaims: async (page = 1, limit = 10, status?: string) => {
-        let url = `/warranty/claims?page=${page}&limit=${limit}`;
+        let url = `/warranty?page=${page}&limit=${limit}`;
         if (status) {
             url += `&status=${status}`;
         }
 
         try {
+            console.log('[orderAPI.getAllWarrantyClaims] Gọi API từ bảng Warranty:', url);
             const response = await api.get(url, { headers: headers() });
+            console.log('[orderAPI.getAllWarrantyClaims] Phản hồi:', response.status, response.data?.success);
             return response;
         } catch (error: any) {
             console.error('[orderAPI.getAllWarrantyClaims] Lỗi:', error.message);
@@ -178,9 +296,48 @@ export const orderAPI = {
         }
     },
 
-    getWarrantyClaimById: async (claimId: string) => {
-        const response = await api.get(`/warranty/claims/${claimId}`, { headers: headers() });
-        return response.data;
+    getWarrantyClaimById: async (warrantyId: string) => {
+        try {
+            console.log('[orderAPI.getWarrantyClaimById] Lấy thông tin bảo hành:', warrantyId);
+            const response = await api.get(`/warranty/${warrantyId}`, { headers: headers() });
+
+            // Chuẩn hóa cấu trúc phản hồi để đảm bảo tính nhất quán
+            let standardizedResponse;
+
+            // Kiểm tra xem response.data có đúng cấu trúc không
+            if (response.data) {
+                if (response.data.success === true && response.data.data) {
+                    // Trường hợp response đã có cấu trúc đúng {success: true, data: ...}
+                    standardizedResponse = response.data;
+                } else if (response.data._id) {
+                    // Trường hợp response trả về trực tiếp dữ liệu warranty, không có wrapper
+                    standardizedResponse = {
+                        success: true,
+                        data: response.data,
+                        message: 'Lấy thông tin bảo hành thành công'
+                    };
+                } else {
+                    // Trường hợp không rõ cấu trúc, giả định thành công nếu status 200
+                    standardizedResponse = {
+                        success: response.status >= 200 && response.status < 300,
+                        data: response.data,
+                        message: response.data.message || 'Kết quả không xác định'
+                    };
+                }
+            } else {
+                // Không có dữ liệu trả về
+                standardizedResponse = {
+                    success: false,
+                    data: null,
+                    message: 'Không nhận được dữ liệu từ API'
+                };
+            }
+
+            return standardizedResponse;
+        } catch (error: any) {
+            console.error('[orderAPI.getWarrantyClaimById] Lỗi khi lấy thông tin bảo hành:', error.message);
+            throw error;
+        }
     },
 
     // Lấy danh sách sản phẩm đang trong thời gian bảo hành
@@ -234,20 +391,37 @@ export const orderAPI = {
     getUserWarrantyClaims: async () => {
         try {
             console.log('[orderAPI.getUserWarrantyClaims] Gọi API lấy yêu cầu bảo hành của người dùng');
-            const response = await api.get('/warranty/my-claims', { headers: headers() });
+            const response = await api.get('/warranty/user', { headers: headers() });
 
             console.log('[orderAPI.getUserWarrantyClaims] Kết quả API:', {
                 status: response.status,
-                success: response.data?.success,
                 count: response.data?.data?.length || 0
             });
 
             return response.data;
         } catch (error: any) {
             console.error('[orderAPI.getUserWarrantyClaims] Lỗi:', error.message);
-            console.error('[orderAPI.getUserWarrantyClaims] Status:', error.response?.status);
-            console.error('[orderAPI.getUserWarrantyClaims] Response:', error.response?.data);
             throw error;
         }
-    }
+    },
+
+    // Tạo yêu cầu bảo hành mới trong bảng Warranty
+    createWarrantyRequest: async (data: {
+        productId: string;
+        description: string;
+        status?: string;
+        contactName?: string;
+        contactPhone?: string;
+        contactAddress?: string;
+        images?: string[];
+    }) => {
+        try {
+            console.log('[orderAPI.createWarrantyRequest] Gọi API tạo yêu cầu bảo hành');
+            const response = await api.post(`/warranty`, data, { headers: headers() });
+            return response.data;
+        } catch (error: any) {
+            console.error('[orderAPI.createWarrantyRequest] Lỗi khi tạo yêu cầu bảo hành:', error.message);
+            throw error;
+        }
+    },
 }

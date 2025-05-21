@@ -52,10 +52,6 @@ const WarrantyManagementPage: React.FC = () => {
     const [claimsTotalPages, setClaimsTotalPages] = useState<number>(1);
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState<string>('');
-    const [selectedClaim, setSelectedClaim] = useState<WarrantyClaim | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-    const [statusUpdate, setStatusUpdate] = useState<string>('');
-    const [notes, setNotes] = useState<string>('');
 
     // State cho sản phẩm đang bảo hành
     const [products, setProducts] = useState<ProductUnderWarranty[]>([]);
@@ -75,29 +71,55 @@ const WarrantyManagementPage: React.FC = () => {
         try {
             setClaimsLoading(true);
             const status = filterStatus !== 'all' ? filterStatus : undefined;
+
+            console.log('Đang tải danh sách bảo hành với:', {
+                page: claimsPage,
+                limit: 10,
+                status: status || 'all'
+            });
+
             const response = await orderAPI.getAllWarrantyClaims(claimsPage, 10, status);
+            console.log('Phản hồi từ API:', {
+                success: response.data?.success,
+                total: response.data?.total || 0,
+                dataLength: response.data?.data?.length || 0
+            });
 
-            if (response.data.success) {
-                const transformedClaims = response.data.data.map(claim => ({
-                    _id: claim._id,
-                    orderItemId: claim.orderItemId || '',
-                    productName: claim.productName,
-                    serialNumber: claim.serialNumber,
-                    customerName: claim.contactName || claim.customerName,
-                    customerPhone: claim.contactPhone || claim.customerPhone,
-                    description: claim.description,
-                    status: claim.status,
-                    images: claim.images || [],
-                    createdAt: claim.createdAt,
-                    updatedAt: claim.updatedAt,
-                    warrantyPeriodMonths: claim.warrantyPeriodMonths || 0,
-                    warrantyEndDate: claim.warrantyEndDate
-                }));
+            if (response.data && response.data.success && Array.isArray(response.data.data)) {
+                // Chuyển đổi dữ liệu từ bảng Warranty sang định dạng tương thích
+                const transformedClaims = response.data.data.map(warranty => {
+                    console.log('Xử lý dữ liệu bảo hành:', warranty._id);
+                    return {
+                        _id: warranty._id,
+                        orderItemId: warranty.productId?._id || warranty.productId || '',
+                        productName: warranty.productName || (warranty.productId?.name) || 'Sản phẩm không xác định',
+                        serialNumber: warranty.serialNumber || 'N/A',
+                        customerName:
+                            warranty.customerId?.userName ||
+                            warranty.customerId?.name ||
+                            'Người dùng không xác định',
+                        customerPhone: warranty.customerId?.phone || warranty.customerId?.phoneNumber || 'N/A',
+                        description: warranty.description || '',
+                        status: warranty.status || 'pending',
+                        images: warranty.images || [],
+                        createdAt: warranty.createdAt,
+                        updatedAt: warranty.updatedAt,
+                        warrantyPeriodMonths:
+                            warranty.warrantyPeriodMonths ||
+                            (warranty.productId?.warrantyPeriodMonths) ||
+                            0,
+                        warrantyEndDate: warranty.endDate
+                    };
+                });
 
+                console.log('Đã chuyển đổi thành công:', transformedClaims.length, 'bản ghi');
+
+                // Cập nhật state với dữ liệu đã được sắp xếp bởi backend
                 setClaims(transformedClaims);
                 setClaimsTotalPages(Math.ceil(response.data.total / 10));
             } else {
-                toast.error(response.data.message || 'Lỗi khi tải danh sách bảo hành');
+                console.error('Dữ liệu API không hợp lệ:', response.data);
+                toast.error(response.data?.message || 'Lỗi khi tải danh sách bảo hành');
             }
         } catch (error) {
             console.error('Lỗi khi tải danh sách bảo hành:', error);
@@ -148,38 +170,17 @@ const WarrantyManagementPage: React.FC = () => {
         fetchWarrantyClaims();
     };
 
-    const openModal = (claim: WarrantyClaim) => {
-        setSelectedClaim(claim);
-        setStatusUpdate(claim.status);
-        setNotes('');
-        setIsModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setSelectedClaim(null);
-    };
-
-    const handleStatusChange = async () => {
-        if (!selectedClaim || !statusUpdate) return;
-
-        try {
-            const response = await orderAPI.updateWarrantyStatus(
-                selectedClaim._id,
-                statusUpdate,
-                notes
-            );
-
-            if (response.data.success) {
-                toast.success('Cập nhật trạng thái bảo hành thành công');
-                fetchWarrantyClaims();
-                closeModal();
-            } else {
-                toast.error(response.data.message || 'Lỗi khi cập nhật trạng thái');
-            }
-        } catch (error) {
-            console.error('Lỗi khi cập nhật trạng thái bảo hành:', error);
-            toast.error('Đã xảy ra lỗi khi cập nhật trạng thái bảo hành');
+    const getStatusDisplayName = (status: string): string => {
+        switch (status) {
+            case 'pending': return 'Chờ xử lý';
+            case 'request': return 'Yêu cầu mới';
+            case 'approved': return 'Đã chấp nhận';
+            case 'sending': return 'Đang gửi đi';
+            case 'received': return 'Đã nhận';
+            case 'processing': return 'Đang xử lý';
+            case 'completed': return 'Hoàn thành';
+            case 'rejected': return 'Từ chối';
+            default: return status;
         }
     };
 
@@ -193,63 +194,78 @@ const WarrantyManagementPage: React.FC = () => {
     };
 
     const getStatusBadge = (status: string) => {
+        // Badge chính cho trạng thái
+        let statusBadge;
+
         switch (status) {
+            case 'pending':
+                statusBadge = (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        Chờ xử lý
+                    </span>
+                );
+                break;
             case 'request':
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        Đang chờ xử lý
+                        Yêu cầu mới
                     </span>
                 );
+                break;
             case 'under_review':
-                return (
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                        Đang xem xét
-                    </span>
-                );
             case 'approved':
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        Đã duyệt
+                        Đã chấp nhận
                     </span>
                 );
+                break;
             case 'sending':
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                         Đang gửi đi
                     </span>
                 );
+                break;
             case 'received':
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
                         Đã nhận
                     </span>
                 );
+                break;
             case 'processing':
             case 'in_progress':
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
                         Đang xử lý
                     </span>
                 );
+                break;
             case 'completed':
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Hoàn thành
                     </span>
                 );
+                break;
             case 'rejected':
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Từ chối bảo hành
+                        Từ chối
                     </span>
                 );
+                break;
             default:
-                return (
+                statusBadge = (
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         {status}
                     </span>
                 );
+                break;
         }
+
+        return statusBadge;
     };
 
     const getProgressColor = (percentage: number) => {
@@ -262,24 +278,24 @@ const WarrantyManagementPage: React.FC = () => {
     // Render các tab chuyển đổi giữa yêu cầu bảo hành và sản phẩm đang bảo hành
     const renderTabs = () => {
         return (
-            <div className="flex space-x-2 mb-6">
+            <div className="flex space-x-4 mb-6">
                 <button
                     onClick={() => handleTabChange('claims')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'claims'
+                    className={`px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm ${activeTab === 'claims'
                         ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
                         }`}
                 >
                     Yêu cầu bảo hành
                 </button>
                 <button
                     onClick={() => handleTabChange('products')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'products'
+                    className={`px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm ${activeTab === 'products'
                         ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
                         }`}
                 >
-                    Sản phẩm đang bảo hành
+                    Sản phẩm còn bảo hành
                 </button>
             </div>
         );
@@ -289,16 +305,32 @@ const WarrantyManagementPage: React.FC = () => {
     const renderProductsUnderWarranty = () => {
         if (productsLoading) {
             return (
-                <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                <div className="flex justify-center items-center py-16">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600"></div>
+                    <p className="ml-3 text-lg text-gray-600">Đang tải dữ liệu...</p>
                 </div>
             );
         }
 
         if (products.length === 0) {
             return (
-                <div className="bg-white rounded-xl shadow-md p-8 text-center">
-                    <p className="text-gray-500">Không có sản phẩm nào đang trong thời gian bảo hành</p>
+                <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                    <svg
+                        className="mx-auto h-16 w-16 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                    </svg>
+                    <h3 className="mt-4 text-lg font-medium text-gray-900">Không có sản phẩm nào đang còn thời hạn bảo hành</h3>
+                    <p className="mt-2 text-base text-gray-500">Hiện không có sản phẩm nào trong hệ thống còn thời hạn bảo hành.</p>
                 </div>
             );
         }
@@ -331,33 +363,49 @@ const WarrantyManagementPage: React.FC = () => {
                                 <tr key={product.serialNumber} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm font-medium text-gray-900">{product.productName}</div>
-                                        <div className="text-xs text-gray-500">SN: {product.serialNumber}</div>
-                                        <div className="text-xs text-gray-500">Đơn hàng: {product.orderNumber}</div>
+                                        <div className="flex items-center mt-1">
+                                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-medium">
+                                                ID: {product.productId}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">Đơn hàng: {product.orderNumber}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900">{product.customer.name}</div>
-                                        <div className="text-xs text-gray-500">{product.customer.phone}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900">{product.warrantyPeriodMonths} tháng</div>
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-xs text-gray-500 mt-1 flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                            </svg>
                                             {formatDate(product.warrantyStartDate)} - {formatDate(product.warrantyEndDate)}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900">{product.remainingDays} ngày</div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                                        <div className="flex items-center">
+                                            <div className="text-sm font-medium text-gray-900 mr-2">{product.remainingDays} ngày</div>
+                                            {product.remainingDays < 30 && (
+                                                <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">Sắp hết hạn</span>
+                                            )}
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1 mt-2">
                                             <div
                                                 className={`h-2.5 rounded-full ${getProgressColor(product.warrantyPercentage)}`}
                                                 style={{ width: `${product.warrantyPercentage}%` }}
                                             ></div>
                                         </div>
-                                        <div className="text-xs text-gray-500">Đã sử dụng {product.warrantyPercentage}%</div>
+                                        <div className="text-xs text-gray-500 flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                            </svg>
+                                            Đã sử dụng {product.warrantyPercentage}%
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <Link
                                             to={`/admin/orders/${product.orderId}`}
-                                            className="text-blue-600 hover:text-blue-900 mr-3"
+                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors"
                                         >
                                             Xem đơn hàng
                                         </Link>
@@ -417,27 +465,29 @@ const WarrantyManagementPage: React.FC = () => {
     };
 
     return (
-        <div className="p-6">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">Quản lý bảo hành</h1>
-                <p className="text-gray-600">Quản lý yêu cầu bảo hành và theo dõi thời gian bảo hành sản phẩm.</p>
+        <div className="p-6 bg-gray-50 min-h-screen">
+            <div className="mb-6 bg-white p-6 rounded-xl shadow-sm">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">Quản lý bảo hành</h1>
+                <p className="text-gray-600">Quản lý yêu cầu bảo hành và theo dõi sản phẩm còn trong thời gian bảo hành.</p>
             </div>
 
             {/* Tab Navigation */}
-            {renderTabs()}
+            <div className="mb-6">
+                {renderTabs()}
+            </div>
 
             {/* Tab Content */}
             {activeTab === 'claims' ? (
                 <>
                     {/* Filter and Search for Claims */}
                     <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-                        <div className="flex flex-col md:flex-row justify-between space-y-4 md:space-y-0">
-                            <div className="flex items-center space-x-4">
-                                <h2 className="text-lg font-semibold text-gray-800">Lọc theo trạng thái:</h2>
+                        <div className="flex flex-col md:flex-row justify-between space-y-4 md:space-y-0 md:items-center">
+                            <div>
+                                <h2 className="text-lg font-semibold text-gray-800 mb-3">Lọc theo trạng thái:</h2>
                                 <div className="flex flex-wrap gap-2">
                                     <button
                                         onClick={() => handleFilter('all')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'all'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'all'
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                                             }`}
@@ -445,8 +495,17 @@ const WarrantyManagementPage: React.FC = () => {
                                         Tất cả
                                     </button>
                                     <button
+                                        onClick={() => handleFilter('pending')}
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'pending'
+                                            ? 'bg-gray-600 text-white'
+                                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        Chờ xử lý
+                                    </button>
+                                    <button
                                         onClick={() => handleFilter('request')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'request'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'request'
                                             ? 'bg-yellow-500 text-white'
                                             : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                                             }`}
@@ -454,26 +513,17 @@ const WarrantyManagementPage: React.FC = () => {
                                         Yêu cầu mới
                                     </button>
                                     <button
-                                        onClick={() => handleFilter('under_review')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'under_review'
-                                            ? 'bg-purple-500 text-white'
-                                            : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                                            }`}
-                                    >
-                                        Đang xem xét
-                                    </button>
-                                    <button
                                         onClick={() => handleFilter('approved')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'approved'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'approved'
                                             ? 'bg-blue-500 text-white'
                                             : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
                                             }`}
                                     >
-                                        Đã duyệt
+                                        Đã chấp nhận
                                     </button>
                                     <button
                                         onClick={() => handleFilter('sending')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'sending'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'sending'
                                             ? 'bg-indigo-500 text-white'
                                             : 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
                                             }`}
@@ -482,7 +532,7 @@ const WarrantyManagementPage: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => handleFilter('received')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'received'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'received'
                                             ? 'bg-teal-500 text-white'
                                             : 'bg-teal-100 text-teal-800 hover:bg-teal-200'
                                             }`}
@@ -491,7 +541,7 @@ const WarrantyManagementPage: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => handleFilter('processing')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'processing'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'processing'
                                             ? 'bg-cyan-500 text-white'
                                             : 'bg-cyan-100 text-cyan-800 hover:bg-cyan-200'
                                             }`}
@@ -500,7 +550,7 @@ const WarrantyManagementPage: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => handleFilter('completed')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'completed'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'completed'
                                             ? 'bg-green-500 text-white'
                                             : 'bg-green-100 text-green-800 hover:bg-green-200'
                                             }`}
@@ -509,7 +559,7 @@ const WarrantyManagementPage: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => handleFilter('rejected')}
-                                        className={`px-3 py-1 rounded-md text-sm transition-colors ${filterStatus === 'rejected'
+                                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterStatus === 'rejected'
                                             ? 'bg-red-500 text-white'
                                             : 'bg-red-100 text-red-800 hover:bg-red-200'
                                             }`}
@@ -522,13 +572,13 @@ const WarrantyManagementPage: React.FC = () => {
                                 <input
                                     type="text"
                                     placeholder="Tìm kiếm theo tên khách hàng, sản phẩm..."
-                                    className="border border-gray-300 rounded-md px-4 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="border border-gray-300 rounded-lg px-4 py-2 w-72 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                                 <button
                                     type="submit"
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow-sm transition-colors"
                                 >
                                     Tìm kiếm
                                 </button>
@@ -540,9 +590,9 @@ const WarrantyManagementPage: React.FC = () => {
                     <div className="bg-white rounded-xl shadow-md overflow-hidden">
                         <div className="overflow-x-auto">
                             {claimsLoading ? (
-                                <div className="flex items-center justify-center py-10">
-                                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-                                    <p className="ml-2 text-gray-600">Đang tải dữ liệu...</p>
+                                <div className="flex items-center justify-center py-16">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600"></div>
+                                    <p className="ml-3 text-lg text-gray-600">Đang tải dữ liệu...</p>
                                 </div>
                             ) : claims.length === 0 ? (
                                 <div className="text-center py-10">
@@ -585,13 +635,7 @@ const WarrantyManagementPage: React.FC = () => {
                                                 scope="col"
                                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                             >
-                                                Serial Number
-                                            </th>
-                                            <th
-                                                scope="col"
-                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                            >
-                                                Ngày tạo
+                                                ID sản phẩm
                                             </th>
                                             <th
                                                 scope="col"
@@ -623,34 +667,29 @@ const WarrantyManagementPage: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm text-gray-900">{claim.customerName}</div>
-                                                    <div className="text-sm text-gray-500">{claim.customerPhone}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-900">{claim.serialNumber}</div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-900">{formatDate(claim.createdAt)}</div>
+                                                    <div className="text-sm text-gray-900 font-mono">{claim.orderItemId}</div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm text-gray-900">{formatDate(claim.warrantyEndDate)}</div>
                                                     <div className="text-xs text-gray-500">{claim.warrantyPeriodMonths} tháng</div>
+                                                    {new Date() > new Date(claim.warrantyEndDate) && (
+                                                        <div className="text-xs text-red-500 font-medium mt-1">Đã hết hạn bảo hành</div>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     {getStatusBadge(claim.status)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button
-                                                        onClick={() => openModal(claim)}
-                                                        className="text-blue-600 hover:text-blue-900 mr-3"
-                                                    >
-                                                        Chi tiết
-                                                    </button>
-                                                    <Link
-                                                        to={`/admin/warranty/${claim._id}`}
-                                                        className="text-indigo-600 hover:text-indigo-900"
-                                                    >
-                                                        Xem đầy đủ
-                                                    </Link>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                    <div className="flex space-x-3">
+                                                        <Link
+                                                            to={`/admin/warranty/${claim._id}`}
+                                                            className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-md transition-colors"
+                                                        >
+                                                            Xem đầy đủ
+                                                        </Link>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -740,79 +779,6 @@ const WarrantyManagementPage: React.FC = () => {
             ) : (
                 /* Products Under Warranty Content */
                 renderProductsUnderWarranty()
-            )}
-
-            {/* Modal for warranty detail */}
-            {isModalOpen && (
-                <div className="fixed inset-0 overflow-y-auto z-50">
-                    <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-                        </div>
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                                            Cập nhật trạng thái bảo hành
-                                        </h3>
-                                        <div className="mb-4">
-                                            <p className="text-sm text-gray-500 mb-1">Sản phẩm: <span className="font-medium text-gray-900">{selectedClaim?.productName}</span></p>
-                                            <p className="text-sm text-gray-500 mb-1">Khách hàng: <span className="font-medium text-gray-900">{selectedClaim?.customerName}</span></p>
-                                            <p className="text-sm text-gray-500 mb-3">Mô tả: <span className="font-medium text-gray-900">{selectedClaim?.description}</span></p>
-
-                                            <div className="mb-4">
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái mới</label>
-                                                <select
-                                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    value={statusUpdate}
-                                                    onChange={(e) => setStatusUpdate(e.target.value)}
-                                                >
-                                                    <option value="request">Yêu cầu mới</option>
-                                                    <option value="under_review">Đang xem xét</option>
-                                                    <option value="approved">Đã duyệt</option>
-                                                    <option value="sending">Đang gửi đi</option>
-                                                    <option value="received">Đã nhận</option>
-                                                    <option value="processing">Đang xử lý</option>
-                                                    <option value="completed">Hoàn thành</option>
-                                                    <option value="rejected">Từ chối</option>
-                                                </select>
-                                            </div>
-
-                                            <div className="mb-4">
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                                                <textarea
-                                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    rows={4}
-                                                    value={notes}
-                                                    onChange={(e) => setNotes(e.target.value)}
-                                                    placeholder="Thêm ghi chú cho việc cập nhật trạng thái..."
-                                                ></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                <button
-                                    type="button"
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                                    onClick={handleStatusChange}
-                                >
-                                    Cập nhật
-                                </button>
-                                <button
-                                    type="button"
-                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                    onClick={closeModal}
-                                >
-                                    Hủy
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             )}
         </div>
     );

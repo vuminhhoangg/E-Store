@@ -5,12 +5,47 @@ import { FaCheckCircle, FaHistory, FaHome, FaArrowRight, FaShieldAlt, FaInfoCirc
 const WarrantySuccessPage: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { claimId, productName } = location.state || { claimId: null, productName: 'sản phẩm' };
+
+    // Kiểm tra location.state trước, nếu không có thì lấy từ sessionStorage
+    let claimData = location.state as any;
+
+    if (!claimData) {
+        const storedData = sessionStorage.getItem('warrantyClaimData');
+        if (storedData) {
+            try {
+                claimData = JSON.parse(storedData);
+                console.log('Đã lấy dữ liệu từ sessionStorage:', claimData);
+            } catch (error) {
+                console.error('Lỗi khi phân tích dữ liệu từ sessionStorage:', error);
+            }
+        } else {
+            console.log('Không tìm thấy dữ liệu trong sessionStorage');
+        }
+    } else {
+        console.log('Đã lấy dữ liệu từ location.state:', claimData);
+    }
+
+    const claimId = claimData?.claimId;
+    const productName = claimData?.productName || 'sản phẩm';
+
+    // Xóa dữ liệu khỏi sessionStorage sau khi đã sử dụng
+    useEffect(() => {
+        if (claimId) {
+            console.log('Đã nhận mã yêu cầu bảo hành:', claimId);
+            setTimeout(() => {
+                sessionStorage.removeItem('warrantyClaimData');
+                console.log('Đã xóa dữ liệu từ sessionStorage');
+            }, 5000); // Xóa sau 5 giây để đảm bảo trang đã được hiển thị đầy đủ
+        } else {
+            console.log('Không tìm thấy mã yêu cầu bảo hành');
+        }
+    }, [claimId]);
 
     // Nếu không có claimId, có thể người dùng đã truy cập trực tiếp vào URL này
     // Chuyển hướng họ đến trang yêu cầu bảo hành
     useEffect(() => {
         if (!claimId) {
+            console.log('Không có mã yêu cầu bảo hành, sẽ chuyển hướng đến trang warranty-request');
             setTimeout(() => {
                 navigate('/warranty-request');
             }, 3000);

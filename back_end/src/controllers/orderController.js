@@ -331,7 +331,7 @@ export const updateOrderStatus = async (req, res) => {
             // In thông tin chi tiết từng sản phẩm trong đơn hàng
             order.items.forEach((item, index) => {
                 console.log(`[OrderController] Sản phẩm ${index + 1}: ${item.name}, warrantyPeriodMonths=${item.warrantyPeriodMonths}, serialNumber=${item.serialNumber || 'N/A'}`);
-                console.log(`[OrderController] Thời gian bảo hành: ${item.warrantyStartDate} - ${item.warrantyEndDate}`);
+                console.log(`[OrderController] Thời gian bảo hành: ${item.warrantyStartDate ? item.warrantyStartDate.toISOString() : 'N/A'} - ${item.warrantyEndDate ? item.warrantyEndDate.toISOString() : 'N/A'}`);
             });
 
             // Thêm các sản phẩm có bảo hành vào bảng Warranty
@@ -343,55 +343,76 @@ export const updateOrderStatus = async (req, res) => {
                 await order.populate('items.productId');
                 console.log(`[OrderController] Đã hoàn thành populate`);
 
-                // Duyệt qua từng sản phẩm trong đơn hàng
-                let warrantyCreatedCount = 0;
-                for (const item of order.items) {
-                    // Chỉ tạo bảo hành cho sản phẩm có thời gian bảo hành > 0
-                    if (item.warrantyPeriodMonths > 0) {
-                        console.log(`[OrderController] Đang tạo bảo hành cho sản phẩm: ${item.name}`);
-                        console.log(`[OrderController] Thông tin sản phẩm: productId=${item.productId}, warrantyPeriodMonths=${item.warrantyPeriodMonths}`);
+                // Kiểm tra: Nếu người đang thực hiện thao tác là admin thì chỉ kích hoạt bảo hành nhưng không tạo yêu cầu bảo hành mới
+                const isAdminUser = req.user && req.user.isAdmin;
+                if (isAdminUser) {
+                    console.log(`[OrderController] Người dùng admin (${req.user._id}) chỉ kích hoạt bảo hành nhưng không tạo yêu cầu bảo hành mới`);
+                    console.log(`[OrderController] Đã kích hoạt bảo hành trong đơn hàng ${order._id} mà không tạo yêu cầu mới`);
+                } else {
+                    // Người dùng không phải admin (là khách hàng đặt đơn) mới tạo bảo hành
+                    console.log(`[OrderController] Người dùng thường (${req.user._id}) sẽ tạo bảo hành mới`);
 
-                        // Tính ngày kết thúc bảo hành
-                        const startDate = new Date(order.deliveredAt);
-                        const endDate = new Date(startDate);
-                        endDate.setMonth(endDate.getMonth() + item.warrantyPeriodMonths);
-                        console.log(`[OrderController] Thời gian bảo hành: ${startDate.toISOString()} - ${endDate.toISOString()}`);
-
-                        // Lấy tên sản phẩm từ item hoặc từ product
-                        const productName = item.name || (item.productId && item.productId.name ? item.productId.name : 'Sản phẩm không tên');
-                        console.log(`[OrderController] Tên sản phẩm: ${productName}`);
-
-                        // Tạo mô tả chi tiết
-                        const detailedDescription = `Bảo hành tự động cho ${productName} từ đơn hàng ${order.orderNumber}. Thời hạn bảo hành ${item.warrantyPeriodMonths} tháng.`;
-
-                        // Chuẩn bị dữ liệu warranty để kiểm tra
-                        const warrantyData = {
-                            productId: item.productId,
-                            customerId: order.userId,
-                            status: 'approved',
-                            description: detailedDescription,
-                            endDate: endDate,
-                            method: 'standard',
-                            price: 0,
-                            serialNumber: item.serialNumber || '',
-                            orderNumber: order.orderNumber,
-                            orderId: order._id,
-                            productName: productName,
-                            startDate: startDate
-                        };
-                        console.log(`[OrderController] Dữ liệu warranty để lưu:`, JSON.stringify(warrantyData, null, 2));
-
-                        // Tạo entry mới trong bảng Warranty với nhiều thông tin hơn
-                        const newWarranty = await Warranty.create(warrantyData);
-                        console.log(`[OrderController] Đã tạo bảo hành thành công với ID: ${newWarranty._id}`);
-                        warrantyCreatedCount++;
-
-                        console.log(`[OrderController] Đã tạo bảo hành cho sản phẩm ${productName} từ đơn hàng ${order.orderNumber}, thời hạn đến ${endDate.toISOString()}`);
+                    // Kiểm tra xem đã có bảo hành nào được tạo trước đó cho đơn hàng này chưa
+                    const existingWarranties = await Warranty.find({ orderId: order._id });
+                    if (existingWarranties && existingWarranties.length > 0) {
+                        console.log(`[OrderController] Đã có ${existingWarranties.length} bảo hành tồn tại cho đơn hàng này, không tạo thêm`);
                     } else {
-                        console.log(`[OrderController] Bỏ qua sản phẩm ${item.name} vì không có thời gian bảo hành`);
+                        // Duyệt qua từng sản phẩm trong đơn hàng
+                        let warrantyCreatedCount = 0;
+                        for (const item of order.items) {
+                            // Chỉ tạo bảo hành cho sản phẩm có thời gian bảo hành > 0
+                            if (item.warrantyPeriodMonths > 0) {
+                                console.log(`[OrderController] Đang tạo bảo hành cho sản phẩm: ${item.name}`);
+                                console.log(`[OrderController] Thông tin sản phẩm: productId=${item.productId}, warrantyPeriodMonths=${item.warrantyPeriodMonths}`);
+
+                                // Lấy tên sản phẩm từ item hoặc từ product
+                                const productName = item.name || (item.productId && item.productId.name ? item.productId.name : 'Sản phẩm không tên');
+                                console.log(`[OrderController] Tên sản phẩm: ${productName}`);
+
+                                // Tạo mô tả chi tiết
+                                const detailedDescription = `Bảo hành tự động cho ${productName} từ đơn hàng ${order.orderNumber}. Thời hạn bảo hành ${item.warrantyPeriodMonths} tháng.`;
+
+                                // Kiểm tra xem đã có bảo hành nào cho sản phẩm trong đơn hàng này chưa
+                                const existingWarranty = await Warranty.findOne({
+                                    orderId: order._id,
+                                    productId: item.productId
+                                });
+
+                                if (existingWarranty) {
+                                    console.log(`[OrderController] Đã tồn tại bảo hành cho sản phẩm ${productName} trong đơn hàng ${order.orderNumber}, không tạo lại`);
+                                    continue;
+                                }
+
+                                // Chuẩn bị dữ liệu warranty để kiểm tra - luôn sử dụng thông tin của khách hàng đặt đơn
+                                const warrantyData = {
+                                    productId: item.productId,
+                                    customerId: order.userId, // Luôn sử dụng ID của khách hàng đặt đơn, không phải admin
+                                    status: 'approved',
+                                    description: detailedDescription,
+                                    endDate: item.warrantyEndDate,
+                                    method: 'standard',
+                                    price: 0,
+                                    serialNumber: item.serialNumber || '',
+                                    orderNumber: order.orderNumber,
+                                    orderId: order._id,
+                                    productName: productName,
+                                    startDate: item.warrantyStartDate
+                                };
+                                console.log(`[OrderController] Dữ liệu warranty để lưu:`, JSON.stringify(warrantyData, null, 2));
+
+                                // Tạo entry mới trong bảng Warranty với nhiều thông tin hơn
+                                const newWarranty = await Warranty.create(warrantyData);
+                                console.log(`[OrderController] Đã tạo bảo hành thành công với ID: ${newWarranty._id}`);
+                                warrantyCreatedCount++;
+
+                                console.log(`[OrderController] Đã tạo bảo hành cho sản phẩm ${productName} từ đơn hàng ${order.orderNumber}, thời hạn đến ${item.warrantyEndDate ? item.warrantyEndDate.toISOString() : 'N/A'}`);
+                            } else {
+                                console.log(`[OrderController] Bỏ qua sản phẩm ${item.name} vì không có thời gian bảo hành`);
+                            }
+                        }
+                        console.log(`[OrderController] Hoàn thành việc tạo ${warrantyCreatedCount} bảo hành cho đơn hàng ${orderId}`);
                     }
                 }
-                console.log(`[OrderController] Hoàn thành việc tạo ${warrantyCreatedCount} bảo hành cho đơn hàng ${orderId}`);
             } catch (warrantyError) {
                 console.error(`[OrderController] Lỗi khi tạo bảo hành trong bảng Warranty:`, warrantyError);
                 console.error(`[OrderController] Chi tiết lỗi:`, warrantyError.message);

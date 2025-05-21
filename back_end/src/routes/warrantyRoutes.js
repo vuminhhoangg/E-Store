@@ -16,27 +16,10 @@ router
     .route('/products')
     .get(protect, admin, warrantyController.getAllProductsUnderWarranty);
 
-// 2. Routes cho warranty claims - từ cụ thể nhất đến chung nhất 
-// 2.1 GET /warranty/claims - Lấy tất cả yêu cầu bảo hành cho admin 
+// Thêm route để lấy danh sách bảo hành của người dùng hiện tại từ bảng Warranty
 router
-    .route('/claims')
-    .get(protect, admin, warrantyController.getAllWarrantyClaims);
-
-// 2.1.5 Route để lấy yêu cầu bảo hành của user hiện tại
-router
-    .route('/my-claims')
-    .get(protect, warrantyController.getUserWarrantyClaims);
-
-// 2.2 POST /warranty/claims/order/:orderItemId - Tạo yêu cầu bảo hành mới cho một item
-router
-    .route('/claims/order/:orderItemId')
-    .post(protect, warrantyController.createWarrantyClaim);
-
-// 2.3 GET, PUT /warranty/claims/:id - Xem chi tiết và cập nhật trạng thái yêu cầu bảo hành
-router
-    .route('/claims/:id')
-    .get(protect, warrantyController.getWarrantyClaimById)
-    .put(protect, warrantyController.updateWarrantyClaimStatus);
+    .route('/user')
+    .get(protect, warrantyController.getWarrantyRequestByCustomerId);
 
 // 3. Route cho warranty request id - PHẢI ĐỂ Ở CUỐI CÙNG
 // vì /:id sẽ bắt tất cả các route khác như /claims nếu đặt trước

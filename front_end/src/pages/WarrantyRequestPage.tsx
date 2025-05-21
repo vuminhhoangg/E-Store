@@ -189,7 +189,7 @@ const WarrantyRequestPage: React.FC = () => {
         setSelectedProduct(product);
         setFormData({
             ...formData,
-            orderItemId: product._id,
+            orderItemId: product.productId,
         });
         setStep(2);
     };
@@ -295,17 +295,19 @@ const WarrantyRequestPage: React.FC = () => {
                 images: uploadedImageUrls.length ? 'Có ảnh' : 'Không có ảnh'
             });
 
+            // Tạo yêu cầu bảo hành mới trong bảng Warranty
+            const warrantyData = {
+                productId: formData.orderItemId,
+                description: formData.description,
+                status: 'request',
+                contactName: formData.contactName,
+                contactPhone: formData.contactPhone,
+                contactAddress: formData.contactAddress,
+                images: uploadedImageUrls
+            };
+
             // Gửi yêu cầu bảo hành
-            const response = await orderAPI.createWarrantyClaim(
-                formData.orderItemId,
-                {
-                    description: formData.description,
-                    images: uploadedImageUrls,
-                    contactName: formData.contactName,
-                    contactPhone: formData.contactPhone,
-                    contactAddress: formData.contactAddress
-                }
-            );
+            const response = await orderAPI.createWarrantyRequest(warrantyData);
 
             console.log("Kết quả API tạo yêu cầu bảo hành:", response);
 
@@ -313,12 +315,16 @@ const WarrantyRequestPage: React.FC = () => {
                 toast.success('Yêu cầu bảo hành đã được gửi thành công');
 
                 // Chuyển hướng đến trang thành công với thông tin yêu cầu bảo hành
-                navigate('/warranty-success', {
-                    state: {
-                        claimId: response.data?.claimNumber || response.data?._id || 'WR-' + Math.floor(Math.random() * 1000000),
-                        productName: selectedProduct?.name || 'Sản phẩm'
-                    }
-                });
+                const claimData = {
+                    claimId: response.data?.claimNumber || response.data?._id || 'WR-' + Math.floor(Math.random() * 1000000),
+                    productName: selectedProduct?.name || 'Sản phẩm'
+                };
+
+                // Lưu thông tin claim vào sessionStorage để tránh mất dữ liệu khi reload
+                sessionStorage.setItem('warrantyClaimData', JSON.stringify(claimData));
+
+                // Chuyển hướng ngay lập tức sau khi có phản hồi thành công
+                navigate('/warranty-success', { state: claimData });
             } else {
                 toast.error(response.message || 'Không thể gửi yêu cầu bảo hành');
             }
