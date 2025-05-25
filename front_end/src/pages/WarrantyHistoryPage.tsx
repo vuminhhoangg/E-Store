@@ -389,7 +389,7 @@ const WarrantyHistoryPage: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-blue-50 to-purple-100 py-12 px-4 sm:px-6 lg:px-8 animate-gradient-x">
             <div className="max-w-5xl mx-auto">
                 <div className="text-center mb-10">
-                    <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 mb-3 transform transition-all duration-500 animate-fade-in-down">Lịch Sử Yêu Cầu Bảo Hành</h1>
+                    <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 mb-3 transform transition-all duration-500 animate-fade-in-down">Quản Lý Yêu Cầu Bảo Hành</h1>
                     <p className="text-lg text-gray-600 max-w-2xl mx-auto">Theo dõi trạng thái các yêu cầu bảo hành của bạn một cách dễ dàng</p>
                     <div className="w-20 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 mx-auto mt-4 rounded-full"></div>
                 </div>
@@ -889,7 +889,7 @@ const WarrantyHistoryPage: React.FC = () => {
                                                     {selectedWarranty.contactAddress ||
                                                         (typeof selectedWarranty.orderId !== 'string' &&
                                                             selectedWarranty.orderId?.shippingAddress ?
-                                                            `${selectedWarranty.orderId.shippingAddress.address}, ${selectedWarranty.orderId.shippingAddress.ward}, ${selectedWarranty.orderId.shippingAddress.district}, ${selectedWarranty.orderId.shippingAddress.city}` : '') ||
+                                                            `${selectedWarranty.orderId.shippingAddress.address}` : '') ||
                                                         'Không có thông tin'}
                                                 </p>
                                             </div>

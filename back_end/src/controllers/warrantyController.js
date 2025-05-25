@@ -11,17 +11,15 @@ export const createWarrantyRequest = async (req, res) => {
         // Lấy dữ liệu từ request body
         const {
             productId,
+            customerId,
             description,
-            status = 'request',
+            status,
             contactName,
             contactPhone,
             contactAddress,
+            orderId,
             images = []
         } = req.body;
-
-        // Lấy ID của user hiện tại từ middleware protect
-        const customerId = req.user._id;
-        console.log('[createWarrantyRequest] User ID:', customerId);
 
         // Kiểm tra sản phẩm tồn tại
         const product = await Product.findById(productId);
@@ -46,6 +44,7 @@ export const createWarrantyRequest = async (req, res) => {
             endDate: new Date(Date.now() + (product.warrantyPeriodMonths || 12) * 30 * 24 * 60 * 60 * 1000),
             startDate: new Date(),
             images,
+            orderId,
             contactName,
             contactPhone,
             contactAddress,
@@ -176,10 +175,7 @@ export const getWarrantyRequestById = async (req, res) => {
         const warrantyRequest = await Warranty.findById(id)
             .populate('productId')
             .populate('customerId')
-            .populate({
-                path: 'orderId',
-                select: '_id orderNumber shippingAddress items'
-            });
+            .populate('orderId');
 
         if (!warrantyRequest) {
             console.log('[getWarrantyRequestById] Không tìm thấy yêu cầu bảo hành');
@@ -288,7 +284,14 @@ export const getWarrantyRequestByCustomerId = async (req, res) => {
                 productIdData: warrantyRequests[0].productId ? {
                     id: warrantyRequests[0].productId._id,
                     name: warrantyRequests[0].productId.name
-                } : 'không có'
+                } : 'không có',
+                orderIdData: {
+                    orderId: warrantyRequests[0].orderId,
+                    orderIdType: typeof warrantyRequests[0].orderId,
+                    orderIdIsObject: typeof warrantyRequests[0].orderId === 'object',
+                    orderIdHasId: typeof warrantyRequests[0].orderId === 'object' && warrantyRequests[0].orderId?._id,
+                    orderNumber: warrantyRequests[0].orderNumber
+                }
             });
         }
 
@@ -324,13 +327,8 @@ export const updateWarrantyRequest = async (req, res) => {
         console.log('[updateWarrantyRequest] Cập nhật yêu cầu bảo hành với ID:', id);
         console.log('[updateWarrantyRequest] Dữ liệu cập nhật:', req.body);
 
-        // Tìm warranty request theo _id hoặc productId
+        // Tìm warranty request theo _id
         let warrantyRequest = await Warranty.findById(id);
-
-        if (!warrantyRequest) {
-            // Thử tìm theo productId
-            warrantyRequest = await Warranty.findOne({ productId: id });
-        }
 
         if (!warrantyRequest) {
             console.log('[updateWarrantyRequest] Không tìm thấy yêu cầu bảo hành');
@@ -340,8 +338,6 @@ export const updateWarrantyRequest = async (req, res) => {
                 message: 'Không tìm thấy yêu cầu bảo hành'
             });
         }
-
-        console.log('[updateWarrantyRequest] Đã tìm thấy yêu cầu bảo hành ID:', warrantyRequest._id);
 
         // Cập nhật các trường nếu có
         if (status !== undefined) warrantyRequest.status = status;

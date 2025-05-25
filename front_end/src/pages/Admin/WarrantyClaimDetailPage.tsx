@@ -720,7 +720,7 @@ const WarrantyClaimDetailPage: React.FC = () => {
                                     <span className="text-gray-600 text-xs font-medium">Địa chỉ:</span>
                                     <p className="font-medium text-gray-900 mt-1">
                                         {(typeof claim.orderId !== 'string' && claim.orderId?.shippingAddress ?
-                                            `${claim.orderId.shippingAddress.address}, ${claim.orderId.shippingAddress.ward}, ${claim.orderId.shippingAddress.district}, ${claim.orderId.shippingAddress.city}` : '') ||
+                                            `${claim.orderId.shippingAddress.address}` : '') ||
                                             claim.contactAddress ||
                                             'N/A'}
                                     </p>

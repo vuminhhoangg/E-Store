@@ -49,7 +49,7 @@ const API_URL = import.meta.env.MODE === 'production'
 console.log('Using API URL:', API_URL);
 
 // Thời gian trước khi token hết hạn mà chúng ta nên làm mới (5 phút)
-const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 phút tính bằng milliseconds
+const TOKEN_REFRESH_THRESHOLD = 2 * 60 * 60 * 1000; // Tăng từ 5 phút lên 2 giờ để tránh refresh quá sớm
 
 const api = axios.create({
     baseURL: API_URL,
@@ -180,38 +180,8 @@ const refreshTokenIfNeeded = async (): Promise<string | null> => {
     const userInfo = getUserInfo();
     if (!userInfo || !userInfo.refreshToken) return null;
 
-    // Kiểm tra cache nếu là admin - cải thiện cache cho admin
-    if (userInfo.user?.isAdmin && adminVerificationCache.verified &&
-        adminVerificationCache.userId === userInfo.user.id &&
-        Date.now() - adminVerificationCache.timestamp < ADMIN_VERIFICATION_CACHE_DURATION) {
-        console.log('[API] Sử dụng cache xác thực admin');
-        // Vẫn kiểm tra hết hạn token ngay cả khi có cache
-        const timeToExpire = userInfo.expiresAt ? userInfo.expiresAt - Date.now() : 0;
-        if (timeToExpire < 15 * 60 * 1000) { // Nếu token sắp hết hạn trong 15 phút
-            console.log('[API] Admin token sắp hết hạn, đang làm mới...');
-            isRefreshing = true; // Đánh dấu đang refresh để tránh nhiều request cùng lúc
-            try {
-                const tokens = await refreshAccessToken(userInfo.refreshToken);
-                const updatedUserInfo = {
-                    ...userInfo,
-                    accessToken: tokens.accessToken,
-                    refreshToken: tokens.refreshToken,
-                    expiresAt: Date.now() + 3 * 60 * 60 * 1000, // 3 giờ
-                    lastActivityUpdate: Date.now()
-                };
-                const isRemembered = localStorage.getItem('userInfo') !== null;
-                updateUserInfo(updatedUserInfo, isRemembered);
-                onRefreshed(tokens.accessToken);
-                isRefreshing = false;
-                return tokens.accessToken;
-            } catch (error) {
-                console.error('[API] Không thể làm mới token admin:', error);
-                isRefreshing = false;
-                return userInfo.accessToken;
-            }
-        }
-        return userInfo.accessToken;
-    }
+    // Bỏ logic đặc biệt cho admin vì đang gây conflict
+    // Admin sẽ sử dụng cùng logic như user thường để tránh xung đột
 
     // Nếu đang trong quá trình refresh token, hoặc token chưa sắp hết hạn
     if (isRefreshing || !isTokenExpiringSoon(userInfo)) {
@@ -228,8 +198,8 @@ const refreshTokenIfNeeded = async (): Promise<string | null> => {
             ...userInfo,
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
-            expiresAt: Date.now() + 3 * 60 * 60 * 1000, // 3 giờ
-            lastActivityUpdate: Date.now() // Thêm thời gian cập nhật hoạt động
+            expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 giờ
+            lastActivityUpdate: Date.now()
         };
 
         const isRemembered = localStorage.getItem('userInfo') !== null;
@@ -252,20 +222,9 @@ api.interceptors.request.use(async (config) => {
     if (userInfoStr) {
         try {
             const userInfo = JSON.parse(userInfoStr);
-            // Nếu có token và người dùng là admin, kiểm tra và làm mới token nếu cần
+            // Đơn giản hóa: tất cả user (bao gồm admin) đều sử dụng cùng logic
             if (userInfo.accessToken) {
-                // Nếu là admin thì chủ động kiểm tra token trước khi gửi request
-                if (userInfo.user && userInfo.user.isAdmin) {
-                    const token = await refreshTokenIfNeeded();
-                    if (token) {
-                        config.headers.Authorization = `Bearer ${token}`;
-                    } else {
-                        config.headers.Authorization = `Bearer ${userInfo.accessToken}`;
-                    }
-                } else {
-                    // Nếu không phải admin, sử dụng token hiện tại
-                    config.headers.Authorization = `Bearer ${userInfo.accessToken}`;
-                }
+                config.headers.Authorization = `Bearer ${userInfo.accessToken}`;
             }
         } catch (error) {
             console.error('[API] Error parsing userInfo:', error);
@@ -455,7 +414,8 @@ export const authAPI = {
 
             // Nếu login thành công và có token, thêm thời gian hết hạn vào thông tin lưu trữ
             if (response.data.success && response.data.tokens && response.data.user) {
-                const expiresAt = Date.now() + 3 * 60 * 60 * 1000; // 3 giờ
+                // Đồng bộ với backend: token hết hạn sau 24 giờ
+                const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 giờ thay vì 3 giờ
 
                 // Đảm bảo trường isAdmin tồn tại
                 const user = {

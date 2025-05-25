@@ -7,8 +7,9 @@ dotenv.config();
 // Sử dụng các biến môi trường giống với phần còn lại của ứng dụng
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-const JWT_ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '3h'; // Changed to 3 hours
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+// Tăng thời gian hết hạn token để tránh đăng xuất tự động quá sớm
+const JWT_ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '24h'; // Tăng từ 3h lên 24h
+const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d'; // Tăng từ 7d lên 30d
 const JWT_SIMPLE_EXPIRES_IN = '90d'; // Simple token expires in 90 days
 const NODE_ENV = process.env.NODE_ENV || 'development';
 

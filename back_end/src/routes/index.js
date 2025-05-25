@@ -27,19 +27,6 @@ router.get('/auth/check-session', protect, (req, res) => {
     });
 });
 
-// Kiểm tra quyền admin
-router.get('/auth/verify-admin', protect, admin, (req, res) => {
-    res.json({
-        success: true,
-        message: "Người dùng có quyền admin",
-        adminInfo: {
-            id: req.user._id,
-            role: req.user.role || 'user',
-            isAdmin: req.user.isAdmin === true
-        }
-    });
-});
-
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);

@@ -36,12 +36,12 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Thời gian hết hạn mặc định (30 phút cho session bình thường)
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 phút
+// Thời gian hết hạn mặc định - tăng lên để tránh đăng xuất tự động quá sớm
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // Tăng từ 30 phút lên 24 giờ
 // Thời gian hết hạn cho "Ghi nhớ đăng nhập" (30 ngày)
 const REMEMBER_TIMEOUT = 30 * 24 * 60 * 60 * 1000; // 30 ngày
-// Khoảng thời gian kiểm tra phiên đăng nhập
-const SESSION_CHECK_INTERVAL = 60 * 1000; // 1 phút
+// Khoảng thời gian kiểm tra phiên đăng nhập - tăng lên để giảm kiểm tra liên tục  
+const SESSION_CHECK_INTERVAL = 15 * 60 * 1000; // Tăng từ 1 phút lên 15 phút
 // Số lần thử lại tối đa khi refresh token thất bại
 const MAX_REFRESH_RETRIES = 3;
 
@@ -190,8 +190,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             // Kiểm tra token hết hạn
             const timeToExpire = userInfo.expiresAt - Date.now();
-            if (timeToExpire < 5 * 60 * 1000) {
-                console.log('Token sắp hết hạn hoặc đã hết hạn, thử làm mới token...');
+            // Chỉ làm mới token nếu thực sự sắp hết hạn (dưới 1 giờ) thay vì 5 phút
+            if (timeToExpire < 60 * 60 * 1000) { // 1 giờ
+                console.log('Token sắp hết hạn hoặc đã hết hạn trong 1 giờ, thử làm mới token...');
                 try {
                     const refreshSuccess = await handleTokenRefresh();
                     if (!refreshSuccess && timeToExpire <= 0) {
@@ -221,11 +222,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (!userInfo) return;
 
             const timeToExpire = userInfo.expiresAt - Date.now();
-            if (timeToExpire < 5 * 60 * 1000) {
-                console.log('Token sắp hết hạn, đang làm mới...');
+            // Chỉ làm mới token khi còn dưới 2 giờ thay vì 5 phút
+            if (timeToExpire < 2 * 60 * 60 * 1000) { // 2 giờ
+                console.log('Token sắp hết hạn trong 2 giờ, đang làm mới...');
                 handleTokenRefresh().catch(console.error);
             }
-        }, 5 * 60 * 1000); // 5 phút - giữ nguyên theo yêu cầu
+        }, 30 * 60 * 1000); // Tăng từ 5 phút lên 30 phút để giảm kiểm tra liên tục
 
         // Theo dõi hoạt động người dùng
         const updateActivity = () => {
@@ -259,41 +261,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             const now = Date.now();
             const isRemembered = localStorage.getItem('userInfo') !== null;
-            const sessionTimeout = isRemembered ? REMEMBER_TIMEOUT : SESSION_TIMEOUT;
 
             // Kiểm tra xem người dùng có phải admin không
             const isAdmin = userInfo.user?.isAdmin === true;
 
-            // Kiểm tra thời gian từ lần cập nhật cuối
+            // Kiểm tra thời gian từ lần cập nhật cuối - giảm tần suất cho admin xuống bằng user thường
             const shouldUpdateActivity =
                 !userInfo.lastActivityUpdate ||
-                (now - userInfo.lastActivityUpdate) > (isAdmin ? 30 * 1000 : 60 * 1000); // Giảm thời gian cho admin
+                (now - userInfo.lastActivityUpdate) > 2 * 60 * 1000; // Tăng lên 2 phút cho cả admin và user
 
             // Kiểm tra token còn bao lâu sẽ hết hạn
             const timeToExpire = userInfo.expiresAt - now;
-            const shouldRefreshToken = timeToExpire < 30 * 60 * 1000; // Làm mới token nếu còn dưới 30 phút
+            const shouldRefreshToken = timeToExpire < 2 * 60 * 60 * 1000; // Làm mới token nếu còn dưới 2 giờ
 
-            // Chỉ cập nhật khi cần thiết hoặc là admin
-            if (shouldUpdateActivity || isAdmin) {
+            // Chỉ cập nhật lastActivityUpdate, KHÔNG thay đổi expiresAt
+            if (shouldUpdateActivity) {
                 const updatedUserInfo = {
                     ...userInfo,
                     lastActivityUpdate: now,
-                    expiresAt: now + sessionTimeout
+                    // BỎ DÒNG: expiresAt: now + sessionTimeout - Điều này gây xung đột!
                 };
 
                 saveUserInfoToStorage(updatedUserInfo, isRemembered);
-                console.log('Phiên làm việc đã được làm mới lúc:', new Date(now).toLocaleString());
+                console.log('Cập nhật thời gian hoạt động cuối lúc:', new Date(now).toLocaleString());
 
-                // Nếu là admin, thường xuyên xác thực trạng thái admin
+                // Nếu là admin, thường xuyên xác thực trạng thái admin nhưng không quá thường xuyên
                 if (isAdmin && !adminVerified) {
                     console.log('Đang xác thực quyền admin...');
                     verifyAdminOnce().catch(console.error);
                 }
             }
 
-            // Ưu tiên làm mới token cho admin hoặc khi token sắp hết hạn
-            if ((isAdmin && shouldUpdateActivity) || shouldRefreshToken) {
-                console.log('Đang làm mới token...');
+            // Chỉ làm mới token khi thực sự cần thiết
+            if (shouldRefreshToken) {
+                console.log(`Token sắp hết hạn trong ${Math.floor(timeToExpire / 1000 / 60)} phút, đang làm mới...`);
                 await handleTokenRefresh();
             }
         } catch (error) {

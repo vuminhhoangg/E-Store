@@ -361,7 +361,7 @@ const OrderManagement = () => {
             const response = await axios.put(`/api/orders/${order._id}/status`, { status: newStatus }, config);
             const customerId = order.user._id;
             if (newStatus === 'delivered') {
-                await Promise.all(order.items.map((item) => warrantyAPI.createWarranty({ productId: item.productId, customerId: customerId })));
+                await Promise.all(order.items.map((item) => warrantyAPI.createWarranty({ productId: item.productId, customerId: customerId, orderId: order._id })));
             }
 
             // Cập nhật UI cho danh sách đơn hàng

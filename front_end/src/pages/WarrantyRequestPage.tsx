@@ -36,40 +36,47 @@ const addCustomStyle = () => {
     };
 };
 
-interface OrderItem {
+// Cập nhật interface cho sản phẩm bảo hành
+interface WarrantyProduct {
     _id: string;
-    productId: string;
-    name: string;
-    price: number;
-    quantity: number;
-    image?: string;
-    warrantyPeriodMonths: number;
-    serialNumber?: string;
-}
-
-interface ShippingAddress {
-    fullName: string;
-    address: string;
-    city: string;
-    district: string;
-    ward: string;
-    phone: string;
-}
-
-interface Order {
-    _id: string;
-    orderNumber?: string;
-    items: OrderItem[];
-    totalAmount: number;
+    productId: {
+        _id: string;
+        name: string;
+        image?: string;
+        warrantyPeriodMonths: number;
+    } | string;
+    customerId: {
+        _id: string;
+        userName: string;
+        name?: string;
+        phone?: string;
+    } | string;
+    orderId?: {
+        _id: string;
+        orderNumber?: string;
+        createdAt?: string;
+        deliveredAt?: string;
+        shippingAddress?: {
+            fullName: string;
+            address: string;
+            city: string;
+            district: string;
+            ward: string;
+            phone: string;
+        } | any;
+    } | any;
+    productName?: string;
     status: string;
+    endDate?: string;
+    startDate?: string;
+    serialNumber?: string;
+    orderNumber?: string;
     createdAt: string;
-    deliveredAt?: string;
-    shippingAddress?: ShippingAddress;
+    updatedAt: string;
 }
 
 interface WarrantyFormData {
-    orderId: string;
-    orderItemId: string;
+    productId: string;
     description: string;
     contactName: string;
     contactPhone: string;
@@ -79,14 +86,13 @@ interface WarrantyFormData {
 
 const WarrantyRequestPage: React.FC = () => {
     const navigate = useNavigate();
-    const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-    const [selectedProduct, setSelectedProduct] = useState<OrderItem | null>(null);
+    const [products, setProducts] = useState<WarrantyProduct[]>([]);
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<WarrantyProduct | null>(null);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<WarrantyFormData>({
-        orderId: '',
-        orderItemId: '',
+        productId: '',
         description: '',
         contactName: '',
         contactPhone: '',
@@ -96,6 +102,10 @@ const WarrantyRequestPage: React.FC = () => {
     const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
     const [error, setError] = useState('');
 
+    // Thêm state cho phân trang
+    const [currentPage, setCurrentPage] = useState(1);
+    const productsPerPage = 6;
+
     // Thêm custom scrollbar style khi component mount
     useEffect(() => {
         const cleanup = addCustomStyle();
@@ -103,93 +113,77 @@ const WarrantyRequestPage: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const fetchOrders = async () => {
+        const fetchWarrantyProducts = async () => {
             try {
                 setLoading(true);
-                const response = await orderAPI.getUserDeliveredOrders();
+                const response = await orderAPI.getUserDeliveredOrders(); // API này thực tế gọi /warranty/user
 
-                console.log('API Response:', response);
                 if (response.success) {
-                    console.log('Orders data:', response.data);
-
-                    // Kiểm tra chi tiết từng đơn hàng
                     if (response.data && response.data.length > 0) {
-                        response.data.forEach((order, index) => {
-                            console.log(`Đơn hàng #${index + 1}:`, {
-                                id: order._id,
-                                hasItems: !!order.items,
-                                itemsIsArray: Array.isArray(order.items),
-                                itemsLength: order.items ? order.items.length : 0,
-                                items: order.items
-                            });
 
-                            // Kiểm tra chi tiết từng sản phẩm trong đơn hàng
-                            if (order.items && Array.isArray(order.items)) {
-                                order.items.forEach((item, i) => {
-                                    console.log(`  Sản phẩm #${i + 1}:`, {
-                                        id: item._id,
-                                        name: item.name,
-                                        warrantyPeriodMonths: item.warrantyPeriodMonths
-                                    });
-                                });
+                        // Lọc sản phẩm có bảo hành hợp lệ
+                        const currentDate = new Date();
+                        const validWarrantyProducts = response.data.filter(item => {
+                            // Bỏ điều kiện kiểm tra trạng thái - hiển thị tất cả sản phẩm có trong bảng warranty
+                            // const isApproved = item.status === 'approved';
 
-                                // Kiểm tra sản phẩm có bảo hành
-                                const warrantyItems = order.items.filter(item => item && item.warrantyPeriodMonths > 0);
-                                console.log(`  Số sản phẩm có bảo hành: ${warrantyItems.length}`);
+                            // Chỉ kiểm tra còn trong thời hạn bảo hành
+                            let isValid = true;
+                            if (item.endDate) {
+                                const endDate = new Date(item.endDate);
+                                isValid = endDate > currentDate;
                             }
+
+                            // Kiểm tra có thông tin sản phẩm
+                            const hasProductInfo = item.productId && (
+                                (typeof item.productId === 'object' && item.productId.name) ||
+                                item.productName
+                            );
+
+                            // Chỉ cần có thông tin sản phẩm và còn trong thời hạn bảo hành
+                            return isValid && hasProductInfo;
                         });
+
+                        // Sắp xếp theo thời gian tạo (mới nhất lên đầu)
+                        const sortedProducts = validWarrantyProducts.sort((a, b) => {
+                            const dateA = new Date(a.createdAt);
+                            const dateB = new Date(b.createdAt);
+                            return dateB.getTime() - dateA.getTime();
+                        });
+
+                        setProducts(sortedProducts);
+                        // Reset về trang đầu khi có dữ liệu mới
+                        setCurrentPage(1);
+                    } else {
+                        setProducts([]);
                     }
-
-                    // Đảm bảo mỗi order đều có items là mảng
-                    const formattedOrders = response.data.map(order => ({
-                        ...order,
-                        items: order.items && Array.isArray(order.items) ? order.items : []
-                    }));
-
-                    setOrders(formattedOrders);
                 } else {
-                    console.error('API trả về thất bại:', response);
-                    setError('Không thể lấy danh sách đơn hàng đã giao. Vui lòng thử lại sau.');
+                    setError('Không thể lấy danh sách sản phẩm bảo hành. Vui lòng thử lại sau.');
                 }
             } catch (error) {
-                console.error('Lỗi khi lấy đơn hàng đã giao:', error);
                 setError('Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchOrders();
+        fetchWarrantyProducts();
     }, []);
 
-    const handleOrderSelect = (order: Order) => {
-        if (!order) return;
-
-        // Đảm bảo order.items luôn là một mảng
-        const orderWithItems = {
-            ...order,
-            items: order.items && Array.isArray(order.items) ? order.items : []
-        };
-
-        setSelectedOrder(orderWithItems);
-        setSelectedProduct(null);
-        setFormData({
-            ...formData,
-            orderId: orderWithItems._id || '',
-            orderItemId: '',
-            contactName: orderWithItems.shippingAddress?.fullName || '',
-            contactPhone: orderWithItems.shippingAddress?.phone || '',
-            contactAddress: orderWithItems.shippingAddress ?
-                formatShippingAddress(orderWithItems.shippingAddress) :
-                '',
-        });
-    };
-
-    const handleProductSelect = (product: OrderItem) => {
+    const handleProductSelect = (product: WarrantyProduct) => {
         setSelectedProduct(product);
+        setSelectedProductId(product._id);
+
+        // Lấy thông tin khách hàng để điền sẵn form
+        const customerInfo = typeof product.customerId === 'object' ? product.customerId : null;
+
         setFormData({
-            ...formData,
-            orderItemId: product.productId,
+            productId: product._id,
+            description: '',
+            contactName: customerInfo?.name || customerInfo?.userName || '',
+            contactPhone: customerInfo?.phone || '',
+            contactAddress: '',
+            images: []
         });
         setStep(2);
     };
@@ -252,18 +246,6 @@ const WarrantyRequestPage: React.FC = () => {
             setError('Vui lòng mô tả vấn đề của sản phẩm');
             return false;
         }
-        if (!formData.contactName.trim()) {
-            setError('Vui lòng nhập tên liên hệ');
-            return false;
-        }
-        if (!formData.contactPhone.trim()) {
-            setError('Vui lòng nhập số điện thoại liên hệ');
-            return false;
-        }
-        if (!formData.contactAddress.trim()) {
-            setError('Vui lòng nhập địa chỉ liên hệ');
-            return false;
-        }
         setError('');
         return true;
     };
@@ -286,38 +268,29 @@ const WarrantyRequestPage: React.FC = () => {
                 uploadedImageUrls = formData.images.map((_, index) => `https://example.com/image${index}.jpg`);
             }
 
-            console.log("Đang gửi dữ liệu bảo hành:", {
-                orderItemId: formData.orderItemId,
-                description: formData.description,
-                contactName: formData.contactName,
-                contactPhone: formData.contactPhone,
-                contactAddress: formData.contactAddress,
-                images: uploadedImageUrls.length ? 'Có ảnh' : 'Không có ảnh'
-            });
+
 
             // Tạo yêu cầu bảo hành mới trong bảng Warranty
             const warrantyData = {
-                productId: formData.orderItemId,
+                id: formData.productId,
                 description: formData.description,
                 status: 'request',
-                contactName: formData.contactName,
-                contactPhone: formData.contactPhone,
-                contactAddress: formData.contactAddress,
-                images: uploadedImageUrls
             };
 
             // Gửi yêu cầu bảo hành
-            const response = await orderAPI.createWarrantyRequest(warrantyData);
-
-            console.log("Kết quả API tạo yêu cầu bảo hành:", response);
+            const response = await orderAPI.editWarranty(warrantyData);
 
             if (response.success) {
                 toast.success('Yêu cầu bảo hành đã được gửi thành công');
 
                 // Chuyển hướng đến trang thành công với thông tin yêu cầu bảo hành
+                const productName = typeof selectedProduct?.productId === 'object'
+                    ? selectedProduct.productId.name
+                    : selectedProduct?.productName || 'Sản phẩm';
+
                 const claimData = {
                     claimId: response.data?.claimNumber || response.data?._id || 'WR-' + Math.floor(Math.random() * 1000000),
-                    productName: selectedProduct?.name || 'Sản phẩm'
+                    productName: productName
                 };
 
                 // Lưu thông tin claim vào sessionStorage để tránh mất dữ liệu khi reload
@@ -329,8 +302,6 @@ const WarrantyRequestPage: React.FC = () => {
                 toast.error(response.message || 'Không thể gửi yêu cầu bảo hành');
             }
         } catch (error: any) {
-            console.error('Lỗi khi gửi yêu cầu bảo hành:', error);
-            console.error('Chi tiết lỗi:', error.response?.data || error.message);
             toast.error(error.response?.data?.message || 'Đã xảy ra lỗi khi gửi yêu cầu bảo hành');
         } finally {
             setLoading(false);
@@ -346,51 +317,109 @@ const WarrantyRequestPage: React.FC = () => {
         });
     };
 
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(price);
+    // Hàm để lấy tên sản phẩm
+    const getProductName = (product: WarrantyProduct): string => {
+        if (typeof product.productId === 'object' && product.productId.name) {
+            return product.productId.name;
+        }
+        return product.productName || 'Sản phẩm không xác định';
     };
 
-    // Thêm hàm để định dạng địa chỉ giao hàng
-    const formatShippingAddress = (address: ShippingAddress): string => {
-        // Tạo mảng mới với các phần được chuẩn hóa
-        const cleanParts: { text: string, level: number }[] = [];
+    // Hàm để lấy hình ảnh sản phẩm
+    const getProductImage = (product: WarrantyProduct): string | undefined => {
+        if (typeof product.productId === 'object' && product.productId.image) {
+            return product.productId.image;
+        }
+        return undefined;
+    };
 
-        // Thêm các phần có giá trị, với mức độ ưu tiên (1=cao, 4=thấp)
-        if (address.address && address.address.trim())
-            cleanParts.push({ text: address.address.trim(), level: 1 });
-        if (address.ward && address.ward.trim())
-            cleanParts.push({ text: address.ward.trim(), level: 2 });
-        if (address.district && address.district.trim())
-            cleanParts.push({ text: address.district.trim(), level: 3 });
-        if (address.city && address.city.trim())
-            cleanParts.push({ text: address.city.trim(), level: 4 });
+    // Hàm để lấy thời hạn bảo hành
+    const getWarrantyPeriod = (product: WarrantyProduct): number => {
+        if (typeof product.productId === 'object' && product.productId.warrantyPeriodMonths) {
+            return product.productId.warrantyPeriodMonths;
+        }
+        return 12; // Mặc định 12 tháng
+    };
 
-        console.log("Địa chỉ gốc được chuẩn hóa:", cleanParts);
+    // Hàm để lấy thông tin thời gian mua
+    const getPurchaseDate = (product: WarrantyProduct): string => {
+        // Ưu tiên lấy từ orderId.createdAt, sau đó đến createdAt của warranty
+        if (typeof product.orderId === 'object' && product.orderId.createdAt) {
+            return formatDate(product.orderId.createdAt);
+        }
+        if (product.startDate) {
+            return formatDate(product.startDate);
+        }
+        return formatDate(product.createdAt);
+    };
 
-        // Mảng kết quả sau khi đã lọc bỏ các phần trùng lặp
-        const finalParts: string[] = [];
-
-        // Xử lý từng phần theo thứ tự ưu tiên
-        for (const part of cleanParts) {
-            // Kiểm tra xem phần này có trùng lặp với phần nào đã có trong kết quả không
-            const isDuplicate = finalParts.some(existing =>
-                existing.toLowerCase() === part.text.toLowerCase() ||
-                existing.toLowerCase().includes(part.text.toLowerCase()) ||
-                part.text.toLowerCase().includes(existing.toLowerCase())
-            );
-
-            if (!isDuplicate) {
-                finalParts.push(part.text);
-            }
+    // Hàm để lấy số đơn hàng
+    const getOrderNumber = (product: WarrantyProduct): string => {
+        // Ưu tiên lấy ID của đơn hàng thực tế
+        if (typeof product.orderId === 'object' && product.orderId && product.orderId._id) {
+            return product.orderId._id;
+        }
+        if (typeof product.orderId === 'string' && product.orderId.trim()) {
+            return product.orderId;
+        }
+        if (product.orderNumber && product.orderNumber.trim()) {
+            return product.orderNumber;
         }
 
-        const result = finalParts.join(', ');
-        console.log("Kết quả định dạng địa chỉ:", result);
+        // Fallback - hiển thị ID warranty thay vì WR-xxx
+        return product._id;
+    };
 
-        return result;
+    // Hàm để lấy tên và màu sắc trạng thái bảo hành
+    const getWarrantyStatus = (status: string): { name: string; color: string } => {
+        switch (status.toLowerCase()) {
+            case 'approved':
+                return { name: 'Đã kích hoạt', color: 'bg-green-100 text-green-800' };
+            case 'request':
+                return { name: 'Đang yêu cầu', color: 'bg-yellow-100 text-yellow-800' };
+            case 'pending':
+                return { name: 'Chờ xử lý', color: 'bg-gray-100 text-gray-800' };
+            case 'processing':
+                return { name: 'Đang xử lý', color: 'bg-blue-100 text-blue-800' };
+            case 'completed':
+                return { name: 'Hoàn thành', color: 'bg-green-100 text-green-800' };
+            case 'rejected':
+                return { name: 'Từ chối', color: 'bg-red-100 text-red-800' };
+            case 'sending':
+                return { name: 'Đang gửi', color: 'bg-indigo-100 text-indigo-800' };
+            case 'received':
+                return { name: 'Đã nhận', color: 'bg-purple-100 text-purple-800' };
+            default:
+                return { name: status, color: 'bg-gray-100 text-gray-800' };
+        }
+    };
+
+    // Logic phân trang
+    const totalPages = Math.ceil(products.length / productsPerPage);
+    const startIndex = (currentPage - 1) * productsPerPage;
+    const endIndex = startIndex + productsPerPage;
+    const currentProducts = products.slice(startIndex, endIndex);
+
+    // Hàm xử lý chuyển trang
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        // Reset selection khi chuyển trang
+        setSelectedProductId(null);
+        setSelectedProduct(null);
+        // Scroll to top khi chuyển trang
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handlePrevPage = () => {
+        if (currentPage > 1) {
+            handlePageChange(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            handlePageChange(currentPage + 1);
+        }
     };
 
     const renderStep1 = () => (
@@ -422,149 +451,288 @@ const WarrantyRequestPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            ) : orders.length === 0 ? (
+            ) : products.length === 0 ? (
                 <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-100 shadow-sm text-center">
                     <svg className="w-16 h-16 text-yellow-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    <p className="text-yellow-700 font-medium mb-3">Bạn chưa có đơn hàng nào đã được giao thành công.</p>
-                    <Link to="/products" className="mt-2 inline-flex items-center px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-300">
-                        <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                        Mua sắm ngay
-                    </Link>
+                    <p className="text-yellow-700 font-medium mb-3">Bạn chưa có sản phẩm nào có thể tạo yêu cầu bảo hành.</p>
+                    <div className="text-yellow-600 mb-4 text-sm">
+                        <p>Có thể do một trong những lý do sau:</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Chưa có sản phẩm nào được thêm vào hệ thống bảo hành</li>
+                            <li>Các sản phẩm đã hết thời hạn bảo hành</li>
+                            <li>Chưa có đơn hàng nào được giao thành công</li>
+                        </ul>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Link to="/products" className="inline-flex items-center px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-300">
+                            <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            Mua sắm ngay
+                        </Link>
+                        <Link to="/warranty-history" className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-full shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-300">
+                            <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Quản lý yêu cầu bảo hành
+                        </Link>
+                    </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    {/* Kiểm tra xem có đơn hàng nào có sản phẩm bảo hành không */}
-                    {orders.some(order =>
-                        order.items && Array.isArray(order.items) &&
-                        order.items.some(item => item && item.warrantyPeriodMonths > 0)
-                    ) ? (
-                        // Nếu có, hiển thị danh sách đơn hàng
-                        orders.map((order) => (
-                            <div
-                                key={order._id}
-                                className={`bg-white border rounded-xl overflow-hidden transition-all ${selectedOrder?._id === order._id
-                                    ? 'border-blue-500 ring-1 ring-blue-200 shadow-md transform scale-[1.01]'
-                                    : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'} duration-300`}
-                            >
-                                <div
-                                    className="p-4 cursor-pointer"
-                                    onClick={() => handleOrderSelect(order)}
-                                >
-                                    <div className="flex justify-between items-center mb-3">
-                                        <h3 className="text-sm font-bold text-gray-900 flex items-center">
-                                            <svg className="w-4 h-4 mr-1.5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                            </svg>
-                                            Đơn hàng #{order._id}
-                                        </h3>
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full font-medium">
-                                            {formatDate(order.createdAt)}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mb-2 flex items-center">
-                                        <svg className="w-4 h-4 mr-1.5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Đã giao: {order.deliveredAt ? formatDate(order.deliveredAt) : 'N/A'}
-                                    </p>
-                                    <p className="text-sm font-medium text-gray-900 flex items-center">
-                                        <svg className="w-4 h-4 mr-1.5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        Tổng giá trị: {formatPrice(order.totalAmount)}
-                                    </p>
+                <div className="space-y-4">
+                    {/* Thông tin tổng quan */}
+                    {products.length > 0 && (
+                        <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-lg border border-blue-100">
+                            <div className="flex items-center text-sm text-blue-700">
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span className="font-medium">
+                                    Tìm thấy {products.length} sản phẩm có thể tạo yêu cầu bảo hành
+                                </span>
+                            </div>
+                            {totalPages > 1 && (
+                                <div className="text-sm text-blue-600">
+                                    Trang {currentPage} / {totalPages}
                                 </div>
+                            )}
+                        </div>
+                    )}
 
-                                {selectedOrder?._id === order._id && (
-                                    <div className="border-t border-gray-200 p-4 bg-gradient-to-b from-gray-50 to-blue-50">
-                                        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
-                                            <svg className="w-4 h-4 mr-1.5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                            </svg>
-                                            Sản phẩm trong đơn hàng:
-                                        </h4>
-                                        <div className="max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-                                            <ul className="divide-y divide-gray-200 rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm">
-                                                {order.items && Array.isArray(order.items) && order.items.filter(item => item && item.warrantyPeriodMonths > 0).map((item) => (
-                                                    <li
-                                                        key={item._id}
-                                                        className={`py-3 px-4 flex items-center justify-between cursor-pointer transition-colors duration-200 ${selectedProduct?._id === item._id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50'}`}
-                                                        onClick={() => handleProductSelect(item)}
+                    <ul className="divide-y divide-gray-200 rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm">
+                        {currentProducts.map((product) => {
+                            const isSelected = selectedProductId === product._id;
+
+                            // Debug để kiểm tra selection
+                            if (isSelected) {
+                                console.log('Sản phẩm được chọn:', {
+                                    productId: product._id,
+                                    selectedProductId,
+                                    isSelected,
+                                    productName: getProductName(product)
+                                });
+                            }
+
+                            return (
+                                <li
+                                    key={product._id}
+                                    className={`py-4 px-4 flex items-center justify-between cursor-pointer transition-all duration-200 ${isSelected
+                                        ? "bg-blue-50 border-l-4 border-l-blue-500 shadow-sm"
+                                        : "hover:bg-gray-50 border-l-4 border-l-transparent"
+                                        }`}
+                                    style={isSelected ? {
+                                        borderLeftColor: '#3b82f6',
+                                        borderLeftWidth: '4px',
+                                        borderLeftStyle: 'solid',
+                                        backgroundColor: '#eff6ff'
+                                    } : {}}
+                                    onClick={() => handleProductSelect(product)}
+                                >
+                                    <div className="flex items-center">
+                                        {getProductImage(product) ? (
+                                            <img
+                                                src={getProductImage(product)}
+                                                alt={getProductName(product)}
+                                                className="h-16 w-16 object-cover rounded-lg mr-4 border border-gray-200 shadow-sm"
+                                            />
+                                        ) : (
+                                            <div className="h-16 w-16 bg-gray-200 rounded-lg mr-4 flex items-center justify-center text-gray-400 shadow-sm">
+                                                <svg
+                                                    className="h-8 w-8"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                    />
+                                                </svg>
+                                            </div>
+                                        )}
+                                        <div className="flex-1">
+                                            <p className="text-base font-semibold text-gray-900">{getProductName(product)}</p>
+                                            <p className="text-sm text-gray-500 mt-1">
+                                                <span className="inline-flex items-center">
+                                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    Ngày mua: {getPurchaseDate(product)}
+                                                </span>
+                                            </p>
+                                            <div className="flex flex-wrap items-center mt-2 gap-2">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    <svg
+                                                        className="w-3 h-3 mr-1"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
                                                     >
-                                                        <div className="flex items-center">
-                                                            {item.image ? (
-                                                                <img
-                                                                    src={item.image}
-                                                                    alt={item.name}
-                                                                    className="h-14 w-14 object-cover rounded-lg mr-3 border border-gray-200 shadow-sm"
-                                                                />
-                                                            ) : (
-                                                                <div className="h-14 w-14 bg-gray-200 rounded-lg mr-3 flex items-center justify-center text-gray-400 shadow-sm">
-                                                                    <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                                    </svg>
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                                                                <div className="flex flex-wrap items-center mt-1 gap-1">
-                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                                        <svg className="w-3 h-3 mr-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                                                        </svg>
-                                                                        Bảo hành: {item.warrantyPeriodMonths} tháng
-                                                                    </span>
-                                                                    {item.serialNumber && (
-                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                                                            <svg className="w-3 h-3 mr-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                                                                            </svg>
-                                                                            SN: {item.serialNumber}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <button className="inline-flex items-center px-2.5 py-1 border border-blue-100 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors duration-200">
-                                                            <svg className="w-3 h-3 mr-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                            </svg>
-                                                            Chọn
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                                {(!order.items || !Array.isArray(order.items) || order.items.filter(item => item && item.warrantyPeriodMonths > 0).length === 0) && (
-                                                    <li className="py-4 px-4 text-sm text-gray-500 bg-gray-50 text-center">
-                                                        <svg className="w-5 h-5 mx-auto mb-1 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                                        />
+                                                    </svg>
+                                                    Bảo hành: {getWarrantyPeriod(product)} tháng
+                                                </span>
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getWarrantyStatus(product.status).color}`}>
+                                                    <svg
+                                                        className="w-3 h-3 mr-1"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M9 12l2 2 4-4m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                        />
+                                                    </svg>
+                                                    {getWarrantyStatus(product.status).name}
+                                                </span>
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                    <svg
+                                                        className="w-3 h-3 mr-1"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                        />
+                                                    </svg>
+                                                    Đơn hàng: {getOrderNumber(product)}
+                                                </span>
+                                                {product.endDate && (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        <svg
+                                                            className="w-3 h-3 mr-1"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                            />
                                                         </svg>
-                                                        Không có sản phẩm nào trong đơn hàng này có thể yêu cầu bảo hành
-                                                    </li>
+                                                        Hết hạn: {formatDate(product.endDate)}
+                                                    </span>
                                                 )}
-                                            </ul>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
+                                    <button className="inline-flex items-center px-3 py-2 border border-blue-200 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors duration-200">
+                                        <svg
+                                            className="w-4 h-4 mr-1"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        Chọn
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+
+                    {/* Thêm phân trang */}
+                    {products.length > productsPerPage && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between mt-6 px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm space-y-3 sm:space-y-0">
+                            <div className="flex items-center text-sm text-gray-700 order-2 sm:order-1">
+                                <span>
+                                    Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
+                                    <span className="font-medium">{Math.min(endIndex, products.length)}</span> trong{' '}
+                                    <span className="font-medium">{products.length}</span> sản phẩm
+                                </span>
                             </div>
-                        ))
-                    ) : (
-                        // Nếu không có sản phẩm nào có bảo hành
-                        <div className="col-span-2 bg-yellow-50 p-6 rounded-xl border border-yellow-100 shadow-sm text-center">
-                            <svg className="w-16 h-16 text-yellow-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                            <p className="text-yellow-700 font-medium mb-3">Không tìm thấy sản phẩm nào có bảo hành trong các đơn hàng đã giao của bạn.</p>
-                            <p className="text-yellow-600 mb-4">Hãy mua sắm sản phẩm có bảo hành để sử dụng tính năng này.</p>
-                            <Link to="/products" className="inline-flex items-center px-4 py-2 border border-transparent rounded-full shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-300">
-                                <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                                Mua sắm ngay
-                            </Link>
+
+                            <div className="flex items-center space-x-1 sm:space-x-2 order-1 sm:order-2">
+                                <button
+                                    onClick={handlePrevPage}
+                                    disabled={currentPage === 1}
+                                    className={`inline-flex items-center px-2 sm:px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${currentPage === 1
+                                        ? 'text-gray-400 cursor-not-allowed'
+                                        : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                                        }`}
+                                >
+                                    <svg className="w-4 h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    <span className="hidden sm:inline">Trước</span>
+                                </button>
+
+                                <div className="flex items-center space-x-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                        // Trên mobile chỉ hiển thị trang hiện tại và 2 trang xung quanh
+                                        const isMobile = window.innerWidth < 640;
+                                        const showPage = isMobile
+                                            ? (page >= currentPage - 1 && page <= currentPage + 1)
+                                            : (page === 1 ||
+                                                page === totalPages ||
+                                                (page >= currentPage - 1 && page <= currentPage + 1));
+
+                                        if (!showPage) {
+                                            // Hiển thị dấu ... nếu cần
+                                            if (page === currentPage - 2 || page === currentPage + 2) {
+                                                return (
+                                                    <span key={page} className="px-1 sm:px-2 py-1 text-gray-500 text-xs sm:text-sm">
+                                                        ...
+                                                    </span>
+                                                );
+                                            }
+                                            return null;
+                                        }
+
+                                        return (
+                                            <button
+                                                key={page}
+                                                onClick={() => handlePageChange(page)}
+                                                className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors duration-200 ${currentPage === page
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                                                    }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={handleNextPage}
+                                    disabled={currentPage === totalPages}
+                                    className={`inline-flex items-center px-2 sm:px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${currentPage === totalPages
+                                        ? 'text-gray-400 cursor-not-allowed'
+                                        : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                                        }`}
+                                >
+                                    <span className="hidden sm:inline">Sau</span>
+                                    <svg className="w-4 h-4 sm:ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -573,111 +741,153 @@ const WarrantyRequestPage: React.FC = () => {
     );
 
     const renderStep2 = () => (
-        <div className="space-y-5">
-            <div className="flex items-center mb-3">
+        <div className="space-y-6">
+            <div className="flex items-center mb-4">
                 <button
                     type="button"
-                    className="flex items-center text-blue-600 hover:text-blue-800 transition-colors duration-200 font-medium text-sm"
+                    className="group flex items-center px-4 py-2 text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-full transition-all duration-300 font-medium text-sm shadow-sm hover:shadow-md transform hover:scale-105"
                     onClick={() => setStep(1)}
                 >
-                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
                     Quay lại chọn sản phẩm
                 </button>
             </div>
 
-            <h2 className="text-lg font-bold text-blue-700 pb-2 border-b border-blue-100 flex items-center">
-                <svg className="w-5 h-5 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Điền thông tin bảo hành
-            </h2>
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl shadow-lg">
+                <h2 className="text-xl font-bold text-white flex items-center">
+                    <div className="bg-white/20 p-3 rounded-xl mr-4">
+                        <svg className="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span className="block">Điền thông tin bảo hành</span>
+                        <span className="text-blue-100 text-sm font-normal mt-1 block">Vui lòng cung cấp thông tin chi tiết về vấn đề của sản phẩm</span>
+                    </div>
+                </h2>
+            </div>
 
             {selectedProduct && (
-                <div className="bg-gradient-to-r from-blue-50 to-gray-50 p-4 rounded-lg mb-5 border border-blue-100 shadow-sm">
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300">
                     <div className="flex items-center">
-                        {selectedProduct.image ? (
-                            <img
-                                src={selectedProduct.image}
-                                alt={selectedProduct.name}
-                                className="h-16 w-16 object-cover rounded-lg mr-3 border border-gray-200 shadow-sm"
-                            />
-                        ) : (
-                            <div className="h-16 w-16 bg-gray-200 rounded-lg mr-3 flex items-center justify-center text-gray-400">
-                                <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <div className="relative">
+                            {getProductImage(selectedProduct) ? (
+                                <img
+                                    src={getProductImage(selectedProduct)}
+                                    alt={getProductName(selectedProduct)}
+                                    className="h-20 w-20 object-cover rounded-xl border-2 border-gray-200 shadow-md"
+                                />
+                            ) : (
+                                <div className="h-20 w-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center text-gray-400 shadow-md">
+                                    <svg className="h-10 w-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                            )}
+                            <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full p-1.5 shadow-lg">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                             </div>
-                        )}
-                        <div>
-                            <h3 className="text-md font-semibold text-gray-900">{selectedProduct.name}</h3>
-                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                    <svg className="w-3 h-3 mr-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        </div>
+                        <div className="ml-5 flex-1">
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">{getProductName(selectedProduct)}</h3>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 shadow-sm">
+                                    <svg className="w-4 h-4 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                     </svg>
-                                    Bảo hành: {selectedProduct.warrantyPeriodMonths} tháng
+                                    Bảo hành: {getWarrantyPeriod(selectedProduct)} tháng
                                 </span>
-                                {selectedProduct.serialNumber && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                        <svg className="w-3 h-3 mr-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                                        </svg>
-                                        Số serial: {selectedProduct.serialNumber}
-                                    </span>
-                                )}
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-green-100 to-green-200 text-green-800 shadow-sm">
+                                    <svg className="w-4 h-4 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Đã chọn
+                                </span>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
                 {error && (
-                    <div className="bg-red-50 p-3 rounded-lg border border-red-100 shadow-sm">
-                        <div className="flex">
+                    <div className="bg-gradient-to-r from-red-50 to-pink-50 p-4 rounded-xl border border-red-200 shadow-lg">
+                        <div className="flex items-start">
                             <div className="flex-shrink-0">
-                                <svg className="h-4 w-4 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
+                                <div className="bg-red-100 p-2 rounded-lg">
+                                    <svg className="h-5 w-5 text-red-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
                             </div>
-                            <div className="ml-3">
-                                <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                            <div className="ml-4">
+                                <h3 className="text-sm font-semibold text-red-800 mb-1">Có lỗi xảy ra</h3>
+                                <p className="text-sm text-red-700">{error}</p>
                             </div>
                         </div>
                     </div>
                 )}
 
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                        Mô tả lỗi <span className="text-red-500">*</span>
-                    </label>
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="flex items-center mb-4">
+                        <div className="bg-orange-100 p-3 rounded-xl mr-4">
+                            <svg className="w-6 h-6 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <label htmlFor="description" className="block text-lg font-semibold text-gray-800 mb-1">
+                                Mô tả vấn đề <span className="text-red-500">*</span>
+                            </label>
+                            <p className="text-sm text-gray-600">Chi tiết về tình trạng và vấn đề của sản phẩm</p>
+                        </div>
+                    </div>
                     <div>
                         <textarea
                             id="description"
                             name="description"
-                            rows={3}
-                            className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200"
-                            placeholder="Mô tả chi tiết vấn đề bạn gặp phải với sản phẩm"
+                            rows={4}
+                            className="block w-full border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-300 p-4 resize-none hover:border-gray-300"
+                            placeholder="Ví dụ: Sản phẩm không hoạt động, có tiếng kêu lạ, màn hình bị hỏng, không sạc được pin..."
                             value={formData.description}
                             onChange={handleInputChange}
                         />
-                        <p className="mt-1 text-xs text-gray-500">Vui lòng mô tả chi tiết vấn đề để chúng tôi có thể hỗ trợ tốt nhất.</p>
+                        <div className="mt-3 flex items-center text-xs text-gray-500">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Mô tả càng chi tiết càng giúp chúng tôi hỗ trợ bạn tốt hơn
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Hình ảnh (tối đa 5 ảnh)
-                    </label>
-                    <div className="mt-1 flex flex-wrap items-center gap-3">
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="flex items-center mb-4">
+                        <div className="bg-purple-100 p-3 rounded-xl mr-4">
+                            <svg className="w-6 h-6 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <label className="block text-lg font-semibold text-gray-800 mb-1">
+                                Hình ảnh minh họa
+                            </label>
+                            <p className="text-sm text-gray-600">Tải lên tối đa 5 hình ảnh về vấn đề của sản phẩm</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                         {formData.images.length < 5 && (
-                            <label className="cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-lg p-2 flex flex-col items-center justify-center w-24 h-24 hover:bg-gray-50 transition-colors duration-300">
-                                <svg className="h-8 w-8 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                                <span className="text-xs text-gray-500 mt-1 text-center">Thêm ảnh</span>
+                            <label className="group cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center aspect-square hover:from-blue-50 hover:to-blue-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-105">
+                                <div className="bg-white p-3 rounded-full shadow-sm group-hover:shadow-md transition-shadow duration-300">
+                                    <svg className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                </div>
+                                <span className="text-xs text-gray-500 mt-2 text-center font-medium group-hover:text-blue-600 transition-colors duration-300">Thêm ảnh</span>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -689,15 +899,16 @@ const WarrantyRequestPage: React.FC = () => {
                         )}
 
                         {imagePreviewUrls.map((url, index) => (
-                            <div key={index} className="relative group">
+                            <div key={index} className="relative group aspect-square">
                                 <img
                                     src={url}
                                     alt={`preview ${index}`}
-                                    className="w-24 h-24 object-cover rounded-lg border border-gray-200 shadow-sm"
+                                    className="w-full h-full object-cover rounded-xl border-2 border-gray-200 shadow-md group-hover:shadow-lg transition-all duration-300"
                                 />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-xl transition-all duration-300"></div>
                                 <button
                                     type="button"
-                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors duration-200 shadow-sm"
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110 opacity-0 group-hover:opacity-100"
                                     onClick={() => removeImage(index)}
                                 >
                                     <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -707,94 +918,153 @@ const WarrantyRequestPage: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                    <p className="mt-2 text-xs text-gray-500">Tải lên hình ảnh mô tả vấn đề của sản phẩm (mỗi ảnh tối đa 5MB).</p>
+                    <div className="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                        <div className="flex items-start">
+                            <svg className="w-4 h-4 text-purple-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p className="text-xs text-purple-700 leading-relaxed">
+                                <span className="font-medium">Gợi ý:</span> Chụp ảnh rõ nét các vị trí hỏng hóc, lỗi hiển thị, hoặc bất thường của sản phẩm.
+                                Mỗi ảnh tối đa 5MB, định dạng JPG, PNG.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <div className="border-b border-gray-200 pb-3 mb-3">
-                        <h3 className="text-md font-medium text-gray-900 flex items-center">
-                            <svg className="w-4 h-4 mr-1.5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 shadow-lg">
+                    <div className="border-b border-blue-200 pb-4 mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                            <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                                <svg className="w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
                             Thông tin liên hệ
                         </h3>
+                        <p className="text-sm text-gray-600 mt-2 ml-12">Thông tin này được lấy từ địa chỉ giao hàng của đơn hàng</p>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-2">
-                        <div>
-                            <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 mb-1">
-                                Tên liên hệ <span className="text-red-500">*</span>
-                            </label>
-                            <div>
-                                <input
-                                    type="text"
-                                    id="contactName"
-                                    name="contactName"
-                                    className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200"
-                                    value={formData.contactName}
-                                    onChange={handleInputChange}
-                                />
+                    <div className="space-y-4">
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                            <div className="flex items-center">
+                                <div className="bg-green-100 p-2 rounded-lg mr-3">
+                                    <svg className="w-4 h-4 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                                        Tên người liên hệ
+                                    </label>
+                                    <p className="text-base font-semibold text-gray-900">
+                                        {selectedProduct?.orderId?.shippingAddress?.fullName || 'Chưa có thông tin'}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        <div>
-                            <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-1">
-                                Số điện thoại <span className="text-red-500">*</span>
-                            </label>
-                            <div>
-                                <input
-                                    type="tel"
-                                    id="contactPhone"
-                                    name="contactPhone"
-                                    className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200"
-                                    value={formData.contactPhone}
-                                    onChange={handleInputChange}
-                                />
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                            <div className="flex items-center">
+                                <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                                    <svg className="w-4 h-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                                        Số điện thoại
+                                    </label>
+                                    <p className="text-base font-semibold text-gray-900">
+                                        {selectedProduct?.orderId?.shippingAddress?.phone || 'Chưa có thông tin'}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="sm:col-span-2">
-                            <label htmlFor="contactAddress" className="block text-sm font-medium text-gray-700 mb-1">
-                                Địa chỉ <span className="text-red-500">*</span>
-                            </label>
-                            <div>
-                                <input
-                                    type="text"
-                                    id="contactAddress"
-                                    name="contactAddress"
-                                    className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200"
-                                    value={formData.contactAddress}
-                                    onChange={handleInputChange}
-                                />
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                            <div className="flex items-start">
+                                <div className="bg-purple-100 p-2 rounded-lg mr-3 mt-1">
+                                    <svg className="w-4 h-4 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                                        Địa chỉ liên hệ
+                                    </label>
+                                    <p className="text-base font-semibold text-gray-900 leading-relaxed">
+                                        {selectedProduct?.orderId?.shippingAddress ? (
+                                            <>
+                                                {selectedProduct.orderId.shippingAddress.address}
+
+                                            </>
+                                        ) : 'Chưa có thông tin'}
+                                    </p>
+                                </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-start">
+                            <svg className="w-4 h-4 text-blue-500 mt-0.5 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p className="text-xs text-blue-700 leading-relaxed">
+                                <span className="font-medium">Lưu ý:</span> Thông tin liên hệ này sẽ được sử dụng để liên hệ với bạn trong quá trình xử lý bảo hành.
+                                Nếu cần thay đổi thông tin, vui lòng liên hệ với bộ phận chăm sóc khách hàng.
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="pt-4">
-                    <div className="flex justify-end gap-3">
-                        <button
-                            type="button"
-                            className="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                            onClick={() => setStep(1)}
-                        >
-                            Quay lại
-                        </button>
-                        <button
-                            type="submit"
-                            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <>
-                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Đang xử lý...
-                                </>
-                            ) : 'Gửi yêu cầu bảo hành'}
-                        </button>
+                <div className="pt-6">
+                    <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-2xl border border-gray-200 shadow-lg">
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center text-sm text-gray-600">
+                                <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Yêu cầu sẽ được xử lý trong vòng 24-48 giờ</span>
+                            </div>
+                            <div className="flex gap-3 w-full sm:w-auto">
+                                <button
+                                    type="button"
+                                    className="flex-1 sm:flex-none group bg-white py-3 px-6 border-2 border-gray-300 rounded-xl shadow-sm text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-300 transform hover:scale-105"
+                                    onClick={() => setStep(1)}
+                                >
+                                    <span className="flex items-center justify-center">
+                                        <svg className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                        Quay lại
+                                    </span>
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 sm:flex-none group inline-flex justify-center items-center py-3 px-8 border border-transparent shadow-lg text-sm font-bold rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <>
+                                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span>Đang xử lý...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                            </svg>
+                                            <span>Gửi yêu cầu bảo hành</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -806,7 +1076,7 @@ const WarrantyRequestPage: React.FC = () => {
             <div className="mb-6 text-center">
                 <h1 className="text-2xl font-bold text-blue-600 tracking-tight">Yêu cầu bảo hành</h1>
                 <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
-                    Gửi yêu cầu bảo hành cho sản phẩm bạn đã mua. Chỉ những sản phẩm đã được giao thành công mới có thể yêu cầu bảo hành.
+                    Gửi yêu cầu bảo hành cho sản phẩm bạn đã mua. Bạn có thể gửi nhiều yêu cầu bảo hành cho cùng một sản phẩm nếu cần thiết.
                 </p>
 
                 {/* Nút xem lịch sử bảo hành */}
@@ -818,7 +1088,7 @@ const WarrantyRequestPage: React.FC = () => {
                         <svg className="w-5 h-5 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <span className="font-semibold">Xem lịch sử yêu cầu bảo hành</span>
+                        <span className="font-semibold">Quản lý yêu cầu bảo hành</span>
                     </Link>
                 </div>
             </div>

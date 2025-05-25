@@ -361,22 +361,24 @@ export const orderAPI = {
     // Lấy đơn hàng đã giao của người dùng hiện tại
     getUserDeliveredOrders: async () => {
         try {
-            console.log('[orderAPI.getUserDeliveredOrders] Gọi API lấy đơn hàng đã giao');
-            const response = await api.get('/orders/user/delivered', { headers: headers() });
-            console.log('[orderAPI.getUserDeliveredOrders] Kết quả API:', response.data);
+            // console.log('[orderAPI.getUserDeliveredOrders] Gọi API lấy đơn hàng đã giao');
+            //const response = await api.get('/orders/user/delivered', { headers: headers() });
+            // console.log('[orderAPI.getUserDeliveredOrders] Kết quả API:', response.data);
 
-            if (response.data && response.data.data) {
-                console.log('[orderAPI.getUserDeliveredOrders] Số lượng đơn hàng:', response.data.data.length);
-                if (response.data.data.length > 0) {
-                    const firstOrder = response.data.data[0];
-                    console.log('[orderAPI.getUserDeliveredOrders] Đơn hàng đầu tiên:', {
-                        id: firstOrder._id,
-                        hasItems: !!firstOrder.items,
-                        itemsIsArray: Array.isArray(firstOrder.items),
-                        itemsLength: firstOrder.items ? firstOrder.items.length : 0
-                    });
-                }
-            }
+            // if (response.data && response.data.data) {
+            //     console.log('[orderAPI.getUserDeliveredOrders] Số lượng đơn hàng:', response.data.data.length);
+            //     if (response.data.data.length > 0) {
+            //         const firstOrder = response.data.data[0];
+            //         console.log('[orderAPI.getUserDeliveredOrders] Đơn hàng đầu tiên:', {
+            //             id: firstOrder._id,
+            //             hasItems: !!firstOrder.items,
+            //             itemsIsArray: Array.isArray(firstOrder.items),
+            //             itemsLength: firstOrder.items ? firstOrder.items.length : 0
+            //         });
+            //     }
+            // }
+            const response = await api.get('/warranty/user')
+            console.log('du lieu tra ve la: ', response.data)
 
             return response.data;
         } catch (error: any) {
