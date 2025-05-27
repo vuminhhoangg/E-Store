@@ -29,6 +29,26 @@ export const createOrder = async (req, res) => {
             });
         }
 
+        // Kiểm tra số lượng sản phẩm có đủ không
+        console.log('Kiểm tra số lượng sản phẩm trong kho...');
+        for (const item of items) {
+            const product = await Product.findById(item.productId);
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: `Không tìm thấy sản phẩm với ID: ${item.productId}`
+                });
+            }
+
+            if (product.countInStock < item.quantity) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Sản phẩm "${product.name}" chỉ còn ${product.countInStock} sản phẩm trong kho, không đủ cho số lượng yêu cầu (${item.quantity})`
+                });
+            }
+        }
+        console.log('Tất cả sản phẩm đều có đủ số lượng trong kho');
+
         // Tạo đơn hàng mới
         const order = new Order({
             userId, // Đây là ObjectId của người dùng
@@ -306,12 +326,15 @@ export const updateOrderStatus = async (req, res) => {
             });
         }
 
+        // Lưu trạng thái cũ để xử lý logic
+        const oldStatus = order.status;
+
         // Cập nhật trạng thái sử dụng phương thức updateStatus
         order.updateStatus(status, req.user._id, req.body.notes || '');
 
-        // Nếu đơn hàng đã hoàn thành (delivered), tự động kích hoạt bảo hành
+        // Nếu đơn hàng đã hoàn thành (delivered), tự động kích hoạt bảo hành và trừ số lượng sản phẩm
         if (status === 'delivered') {
-            console.log(`[OrderController] Đơn hàng ${orderId} đã giao thành công, tiến hành kích hoạt bảo hành`);
+            console.log(`[OrderController] Đơn hàng ${orderId} đã giao thành công, tiến hành kích hoạt bảo hành và cập nhật số lượng sản phẩm`);
             console.log(`[OrderController] Trạng thái trước khi cập nhật: ${order.status}, Thời gian giao: ${order.deliveredAt}`);
             console.log(`[OrderController] Thông tin bảo hành hiện tại: warrantyActivated=${order.warrantyActivated}, warrantyStartDate=${order.warrantyStartDate}`);
 
@@ -319,6 +342,31 @@ export const updateOrderStatus = async (req, res) => {
             if (!order.deliveredAt) {
                 order.deliveredAt = Date.now();
                 console.log(`[OrderController] Đã cập nhật thời gian giao hàng: ${order.deliveredAt}`);
+            }
+
+            // Trừ số lượng sản phẩm trong kho
+            console.log(`[OrderController] Bắt đầu cập nhật số lượng sản phẩm trong kho`);
+            try {
+                for (const item of order.items) {
+                    const product = await Product.findById(item.productId);
+                    if (product) {
+                        const oldStock = product.countInStock;
+                        const newStock = Math.max(0, product.countInStock - item.quantity);
+
+                        product.countInStock = newStock;
+                        product.numSold = (product.numSold || 0) + item.quantity;
+
+                        await product.save();
+
+                        console.log(`[OrderController] Đã cập nhật sản phẩm ${product.name}: số lượng từ ${oldStock} xuống ${newStock}, đã bán: ${product.numSold}`);
+                    } else {
+                        console.warn(`[OrderController] Không tìm thấy sản phẩm với ID: ${item.productId}`);
+                    }
+                }
+                console.log(`[OrderController] Hoàn thành cập nhật số lượng sản phẩm trong kho`);
+            } catch (stockError) {
+                console.error(`[OrderController] Lỗi khi cập nhật số lượng sản phẩm:`, stockError);
+                // Không trả về lỗi này ra response, chỉ ghi log
             }
 
             // Kích hoạt bảo hành cho các sản phẩm trong đơn hàng
@@ -417,6 +465,33 @@ export const updateOrderStatus = async (req, res) => {
                 console.error(`[OrderController] Lỗi khi tạo bảo hành trong bảng Warranty:`, warrantyError);
                 console.error(`[OrderController] Chi tiết lỗi:`, warrantyError.message);
                 console.error(`[OrderController] Stack trace:`, warrantyError.stack);
+                // Không trả về lỗi này ra response, chỉ ghi log
+            }
+        }
+
+        // Nếu đơn hàng bị hủy sau khi đã giao, hoàn lại số lượng sản phẩm
+        if (status === 'cancelled' && oldStatus === 'delivered') {
+            console.log(`[OrderController] Đơn hàng ${orderId} bị hủy sau khi đã giao, hoàn lại số lượng sản phẩm`);
+            try {
+                for (const item of order.items) {
+                    const product = await Product.findById(item.productId);
+                    if (product) {
+                        const oldStock = product.countInStock;
+                        const newStock = product.countInStock + item.quantity;
+
+                        product.countInStock = newStock;
+                        product.numSold = Math.max(0, (product.numSold || 0) - item.quantity);
+
+                        await product.save();
+
+                        console.log(`[OrderController] Đã hoàn lại sản phẩm ${product.name}: số lượng từ ${oldStock} lên ${newStock}, đã bán: ${product.numSold}`);
+                    } else {
+                        console.warn(`[OrderController] Không tìm thấy sản phẩm với ID: ${item.productId}`);
+                    }
+                }
+                console.log(`[OrderController] Hoàn thành việc hoàn lại số lượng sản phẩm`);
+            } catch (stockError) {
+                console.error(`[OrderController] Lỗi khi hoàn lại số lượng sản phẩm:`, stockError);
                 // Không trả về lỗi này ra response, chỉ ghi log
             }
         }
@@ -668,6 +743,87 @@ export const getUserDeliveredOrders = async (req, res) => {
             success: false,
             message: 'Đã xảy ra lỗi, không thể lấy danh sách đơn hàng đã giao',
             error: error.message
+        });
+    }
+};
+
+// Hủy đơn hàng của người dùng
+export const cancelUserOrder = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const userId = req.user._id;
+
+        console.log(`[OrderController] Người dùng ${userId} đang yêu cầu hủy đơn hàng ${orderId}`);
+
+        // Tìm đơn hàng theo ID và kiểm tra quyền sở hữu
+        const order = await Order.findOne({ _id: orderId, userId: userId });
+
+        if (!order) {
+            console.log(`[OrderController] Không tìm thấy đơn hàng ${orderId} của người dùng ${userId}`);
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đơn hàng hoặc bạn không có quyền hủy đơn hàng này'
+            });
+        }
+
+        // Kiểm tra trạng thái đơn hàng có thể hủy không
+        const cancellableStatuses = ['pending', 'processing'];
+        if (!cancellableStatuses.includes(order.status)) {
+            console.log(`[OrderController] Đơn hàng ${orderId} có trạng thái ${order.status} không thể hủy`);
+            return res.status(400).json({
+                success: false,
+                message: `Không thể hủy đơn hàng ở trạng thái "${order.status}". Chỉ có thể hủy đơn hàng ở trạng thái "Chờ xác nhận" hoặc "Đang xử lý".`
+            });
+        }
+
+        // Lưu trạng thái cũ để xử lý logic
+        const oldStatus = order.status;
+
+        // Cập nhật trạng thái đơn hàng thành "cancelled"
+        order.updateStatus('cancelled', userId, 'Đơn hàng được hủy bởi khách hàng');
+
+        // Nếu đơn hàng đã được xử lý (processing), hoàn lại số lượng sản phẩm
+        if (oldStatus === 'processing') {
+            console.log(`[OrderController] Đơn hàng ${orderId} đang ở trạng thái processing, hoàn lại số lượng sản phẩm`);
+            try {
+                for (const item of order.items) {
+                    const product = await Product.findById(item.productId);
+                    if (product) {
+                        const oldStock = product.countInStock;
+                        const newStock = product.countInStock + item.quantity;
+
+                        product.countInStock = newStock;
+                        product.numSold = Math.max(0, (product.numSold || 0) - item.quantity);
+
+                        await product.save();
+                        console.log(`[OrderController] Đã hoàn lại ${item.quantity} sản phẩm ${product.name} (${oldStock} -> ${newStock})`);
+                    }
+                }
+            } catch (stockError) {
+                console.error(`[OrderController] Lỗi khi hoàn lại số lượng sản phẩm:`, stockError);
+                // Không return lỗi ở đây vì đơn hàng đã được hủy thành công
+            }
+        }
+
+        // Lưu thay đổi
+        await order.save();
+
+        console.log(`[OrderController] Đã hủy thành công đơn hàng ${orderId} của người dùng ${userId}`);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Đã hủy đơn hàng thành công',
+            data: {
+                orderId: order._id,
+                status: order.status,
+                cancelledAt: new Date()
+            }
+        });
+    } catch (error) {
+        console.error(`[OrderController] Lỗi khi hủy đơn hàng:`, error);
+        return res.status(500).json({
+            success: false,
+            message: `Đã xảy ra lỗi khi hủy đơn hàng: ${error.message}`
         });
     }
 }; 

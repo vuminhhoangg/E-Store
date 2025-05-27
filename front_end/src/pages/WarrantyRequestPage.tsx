@@ -170,7 +170,19 @@ const WarrantyRequestPage: React.FC = () => {
         fetchWarrantyProducts();
     }, []);
 
+    // Hàm để kiểm tra xem sản phẩm có thể chọn được không
+    const isProductSelectable = (product: WarrantyProduct): boolean => {
+        const nonSelectableStatuses = ['received', 'processing', 'completed'];
+        return !nonSelectableStatuses.includes(product.status.toLowerCase());
+    };
+
     const handleProductSelect = (product: WarrantyProduct) => {
+        // Kiểm tra xem sản phẩm có thể chọn được không
+        if (!isProductSelectable(product)) {
+            toast.warning('Sản phẩm này đã có yêu cầu bảo hành đang được xử lý hoặc đã hoàn thành');
+            return;
+        }
+
         setSelectedProduct(product);
         setSelectedProductId(product._id);
 
@@ -483,26 +495,42 @@ const WarrantyRequestPage: React.FC = () => {
                 <div className="space-y-4">
                     {/* Thông tin tổng quan */}
                     {products.length > 0 && (
-                        <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-lg border border-blue-100">
-                            <div className="flex items-center text-sm text-blue-700">
-                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span className="font-medium">
-                                    Tìm thấy {products.length} sản phẩm có thể tạo yêu cầu bảo hành
-                                </span>
-                            </div>
-                            {totalPages > 1 && (
-                                <div className="text-sm text-blue-600">
-                                    Trang {currentPage} / {totalPages}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between bg-blue-50 px-4 py-3 rounded-lg border border-blue-100">
+                                <div className="flex items-center text-sm text-blue-700">
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span className="font-medium">
+                                        Tìm thấy {products.length} sản phẩm có thể tạo yêu cầu bảo hành
+                                    </span>
                                 </div>
-                            )}
+                                {totalPages > 1 && (
+                                    <div className="text-sm text-blue-600">
+                                        Trang {currentPage} / {totalPages}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Thông báo về sản phẩm không thể chọn */}
+                            <div className="bg-amber-50 px-4 py-3 rounded-lg border border-amber-200">
+                                <div className="flex items-start">
+                                    <svg className="w-5 h-5 text-amber-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <div className="text-sm text-amber-700">
+                                        <p className="font-medium mb-1">Lưu ý:</p>
+                                        <p>Các sản phẩm có trạng thái <span className="font-semibold">"Đã nhận"</span>, <span className="font-semibold">"Đang xử lý"</span> hoặc <span className="font-semibold">"Hoàn thành"</span> không thể tạo yêu cầu bảo hành mới.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
                     <ul className="divide-y divide-gray-200 rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm">
                         {currentProducts.map((product) => {
                             const isSelected = selectedProductId === product._id;
+                            const isSelectable = isProductSelectable(product);
 
                             // Debug để kiểm tra selection
                             if (isSelected) {
@@ -517,9 +545,11 @@ const WarrantyRequestPage: React.FC = () => {
                             return (
                                 <li
                                     key={product._id}
-                                    className={`py-4 px-4 flex items-center justify-between cursor-pointer transition-all duration-200 ${isSelected
-                                        ? "bg-blue-50 border-l-4 border-l-blue-500 shadow-sm"
-                                        : "hover:bg-gray-50 border-l-4 border-l-transparent"
+                                    className={`py-4 px-4 flex items-center justify-between transition-all duration-200 ${!isSelectable
+                                        ? "bg-gray-100 border-l-4 border-l-gray-300 opacity-60 cursor-not-allowed"
+                                        : isSelected
+                                            ? "bg-blue-50 border-l-4 border-l-blue-500 shadow-sm cursor-pointer"
+                                            : "hover:bg-gray-50 border-l-4 border-l-transparent cursor-pointer"
                                         }`}
                                     style={isSelected ? {
                                         borderLeftColor: '#3b82f6',
@@ -527,7 +557,8 @@ const WarrantyRequestPage: React.FC = () => {
                                         borderLeftStyle: 'solid',
                                         backgroundColor: '#eff6ff'
                                     } : {}}
-                                    onClick={() => handleProductSelect(product)}
+                                    onClick={() => isSelectable && handleProductSelect(product)}
+                                    title={!isSelectable ? `Sản phẩm này đã có yêu cầu bảo hành ở trạng thái "${getWarrantyStatus(product.status).name}" và không thể tạo yêu cầu mới` : ''}
                                 >
                                     <div className="flex items-center">
                                         {getProductImage(product) ? (
@@ -555,7 +586,14 @@ const WarrantyRequestPage: React.FC = () => {
                                             </div>
                                         )}
                                         <div className="flex-1">
-                                            <p className="text-base font-semibold text-gray-900">{getProductName(product)}</p>
+                                            <div className="flex items-center">
+                                                <p className="text-base font-semibold text-gray-900">{getProductName(product)}</p>
+                                                {!isSelectable && (
+                                                    <svg className="w-4 h-4 ml-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                    </svg>
+                                                )}
+                                            </div>
                                             <p className="text-sm text-gray-500 mt-1">
                                                 <span className="inline-flex items-center">
                                                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -638,18 +676,33 @@ const WarrantyRequestPage: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <button className="inline-flex items-center px-3 py-2 border border-blue-200 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors duration-200">
-                                        <svg
-                                            className="w-4 h-4 mr-1"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                        Chọn
-                                    </button>
+                                    {isSelectable ? (
+                                        <button className="inline-flex items-center px-3 py-2 border border-blue-200 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors duration-200">
+                                            <svg
+                                                className="w-4 h-4 mr-1"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            Chọn
+                                        </button>
+                                    ) : (
+                                        <div className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-gray-200 text-gray-500 cursor-not-allowed">
+                                            <svg
+                                                className="w-4 h-4 mr-1"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            Chọn
+                                        </div>
+                                    )}
                                 </li>
                             );
                         })}

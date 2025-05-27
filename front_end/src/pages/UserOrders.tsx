@@ -61,13 +61,86 @@ interface Order {
     paidAt?: string;
 }
 
+// Component xác nhận tùy chỉnh
+const CustomConfirmDialog: React.FC<{
+    isOpen: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+}> = ({ isOpen, onConfirm, onCancel, title, message, confirmText = "Xác nhận", cancelText = "Hủy bỏ" }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 animate-scaleIn">
+                <div className="p-6">
+                    {/* Icon cảnh báo */}
+                    <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
+                        <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                    </div>
+
+                    {/* Tiêu đề */}
+                    <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                        {title}
+                    </h3>
+
+                    {/* Nội dung */}
+                    <p className="text-gray-600 text-center mb-6 leading-relaxed">
+                        {message}
+                    </p>
+
+                    {/* Nút hành động */}
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={onCancel}
+                            className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        >
+                            {cancelText}
+                        </button>
+                        <button
+                            onClick={onConfirm}
+                            className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-300 shadow-lg hover:shadow-xl"
+                        >
+                            {confirmText}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const UserOrders: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState({
+        isOpen: false,
+        orderId: '',
+        title: '',
+        message: ''
+    });
     const { isLoggedIn, user } = useAuth();
+
+    // Thêm CSS styles vào đầu component
+    useEffect(() => {
+        // Tạo style element
+        const styleElement = document.createElement('style');
+        styleElement.textContent = animationStyles;
+        document.head.appendChild(styleElement);
+
+        // Cleanup function để remove style khi component unmount
+        return () => {
+            document.head.removeChild(styleElement);
+        };
+    }, []);
 
     useEffect(() => {
         if (isLoggedIn) {
@@ -181,6 +254,66 @@ const UserOrders: React.FC = () => {
         setDetailsModalOpen(false);
     };
 
+    // Hàm mở dialog xác nhận hủy đơn hàng
+    const openCancelConfirmDialog = (orderId: string) => {
+        setConfirmDialog({
+            isOpen: true,
+            orderId: orderId,
+            title: 'Xác nhận hủy đơn hàng',
+            message: 'Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.'
+        });
+    };
+
+    // Hàm đóng dialog xác nhận
+    const closeCancelConfirmDialog = () => {
+        setConfirmDialog({
+            isOpen: false,
+            orderId: '',
+            title: '',
+            message: ''
+        });
+    };
+
+    // Hàm hủy đơn hàng
+    const cancelOrder = async (orderId: string) => {
+        try {
+            setLoading(true);
+            closeCancelConfirmDialog();
+
+            const response = await orderAPI.cancelOrder(orderId);
+
+            if (response.success) {
+                toast.success('Đã hủy đơn hàng thành công');
+
+                // Cập nhật trạng thái đơn hàng trong danh sách
+                setOrders(prevOrders =>
+                    prevOrders.map(order =>
+                        order._id === orderId
+                            ? { ...order, status: 'cancelled' }
+                            : order
+                    )
+                );
+
+                // Cập nhật đơn hàng đang được chọn nếu có
+                if (selectedOrder && selectedOrder._id === orderId) {
+                    setSelectedOrder(prev => prev ? { ...prev, status: 'cancelled' } : null);
+                }
+            } else {
+                toast.error(response.message || 'Không thể hủy đơn hàng');
+            }
+        } catch (error: any) {
+            console.error('Lỗi khi hủy đơn hàng:', error);
+            toast.error(error.response?.data?.message || 'Đã xảy ra lỗi khi hủy đơn hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Kiểm tra xem đơn hàng có thể hủy không
+    const canCancelOrder = (status: string) => {
+        return ['pending', 'processing'].includes(status);
+    };
+
     const getFormattedAddress = (address?: ShippingAddress) => {
         if (!address) return 'Không có thông tin';
 
@@ -263,7 +396,7 @@ const UserOrders: React.FC = () => {
                 <div className="space-x-2">
                     <Link
                         to="/warranty-request"
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 hover:text-gray-100"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -307,7 +440,7 @@ const UserOrders: React.FC = () => {
                                     <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gradient-to-r from-blue-50 to-white">
                                         Thanh toán
                                     </th>
-                                    <th scope="col" className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gradient-to-r from-blue-50 to-white">
+                                    <th scope="col" className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-gradient-to-r from-blue-50 to-white">
                                         Thao tác
                                     </th>
                                 </tr>
@@ -358,13 +491,24 @@ const UserOrders: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {getPaymentMethodName(order.paymentMethod)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button
-                                                    onClick={() => viewOrderDetails(order)}
-                                                    className="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors font-medium"
-                                                >
-                                                    Chi tiết
-                                                </button>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                                <div className="flex items-center justify-center space-x-2">
+                                                    <button
+                                                        onClick={() => viewOrderDetails(order)}
+                                                        className="text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors font-medium"
+                                                    >
+                                                        Chi tiết
+                                                    </button>
+                                                    {canCancelOrder(order.status) && (
+                                                        <button
+                                                            onClick={() => openCancelConfirmDialog(order._id)}
+                                                            className="text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors font-medium"
+                                                            disabled={loading}
+                                                        >
+                                                            Hủy đơn
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -640,7 +784,24 @@ const UserOrders: React.FC = () => {
                                         )}
                                     </div>
 
-                                    <div className="text-right pt-6 border-t border-gray-200 mt-6">
+                                    <div className="flex justify-between items-center pt-6 border-t border-gray-200 mt-6">
+                                        <div>
+                                            {canCancelOrder(selectedOrder.status) && (
+                                                <button
+                                                    onClick={() => {
+                                                        openCancelConfirmDialog(selectedOrder._id);
+                                                        closeModal();
+                                                    }}
+                                                    className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                                                    disabled={loading}
+                                                >
+                                                    <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                    Hủy đơn hàng
+                                                </button>
+                                            )}
+                                        </div>
                                         <button
                                             onClick={closeModal}
                                             className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -654,6 +815,17 @@ const UserOrders: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Custom Confirm Dialog */}
+            <CustomConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                onConfirm={() => cancelOrder(confirmDialog.orderId)}
+                onCancel={closeCancelConfirmDialog}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                confirmText="Hủy đơn hàng"
+                cancelText="Giữ lại"
+            />
         </div>
     );
 };

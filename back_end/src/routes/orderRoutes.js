@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect, admin } from '../middleware/authMiddleware.js';
-import { getAllOrders, getOrderById, updateOrderStatus, createOrder, getUserOrders, startOrderWarranty, getUserDeliveredOrders } from '../controllers/orderController.js'
+import { getAllOrders, getOrderById, updateOrderStatus, createOrder, getUserOrders, startOrderWarranty, getUserDeliveredOrders, cancelUserOrder } from '../controllers/orderController.js'
 
 const router = express.Router();
 
@@ -12,6 +12,10 @@ router.route('/')
 // Lấy danh sách đơn hàng của người dùng đang đăng nhập
 router.route('/user')
     .get(protect, getUserOrders);
+
+// Hủy đơn hàng của người dùng
+router.route('/:id/cancel')
+    .put(protect, cancelUserOrder);
 
 // Lấy thông tin đơn hàng theo ID
 router.route('/:id')

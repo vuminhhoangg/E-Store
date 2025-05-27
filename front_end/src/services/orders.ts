@@ -98,6 +98,19 @@ export const orderAPI = {
         return response.data;
     },
 
+    cancelOrder: async (orderId: string) => {
+        try {
+            console.log('[orderAPI.cancelOrder] Hủy đơn hàng:', orderId);
+            const response = await api.put(`/orders/${orderId}/cancel`, {}, { headers: headers() });
+            console.log('[orderAPI.cancelOrder] Kết quả:', response.data);
+            return response.data;
+        } catch (error: any) {
+            console.error('[orderAPI.cancelOrder] Lỗi khi hủy đơn hàng:', error.message);
+            console.error('[orderAPI.cancelOrder] Chi tiết lỗi:', error.response?.data);
+            throw error;
+        }
+    },
+
     updatePaymentStatus: async (orderId: string, paymentData: { isPaid: boolean; paymentResult?: any }) => {
         const response = await api.put(`/orders/${orderId}/pay`, paymentData, { headers: headers() });
         return response.data;
