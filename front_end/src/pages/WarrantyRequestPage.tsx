@@ -462,7 +462,6 @@ const WarrantyRequestPage: React.FC = () => {
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Chưa có sản phẩm nào được thêm vào hệ thống bảo hành</li>
                             <li>Các sản phẩm đã hết thời hạn bảo hành</li>
-                            <li>Chưa có đơn hàng nào được giao thành công</li>
                         </ul>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">

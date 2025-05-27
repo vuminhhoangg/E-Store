@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import AdminModal from '../../components/AdminModal';
+import { productAPI } from '../../services/products';
 import '../../styles/AdminStyles.css';
 
 // Định nghĩa interfaces
@@ -63,32 +64,26 @@ const ProductManagement = () => {
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                // Kiểm tra token
-                const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-                if (!userInfoStr) {
-                    console.error('Không tìm thấy thông tin đăng nhập');
-                    setError('Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn');
-                    setLoading(false);
-                    return;
-                }
-
-                const userInfo = JSON.parse(userInfoStr);
-                if (!userInfo.accessToken) {
-                    console.error('Không tìm thấy access token');
-                    setError('Phiên đăng nhập không hợp lệ');
-                    setLoading(false);
-                    return;
-                }
-
                 console.log('Gọi API lấy danh sách sản phẩm');
-                const response = await axios.get('/api/products', {
-                    headers: {
-                        Authorization: `Bearer ${userInfo.accessToken}`
-                    }
-                });
+                const response = await productAPI.getAllProducts();
 
                 console.log('Kết quả API:', response.data);
-                setProducts(response.data.data || []);
+                if (response && response.data) {
+                    const responseData = response.data;
+                    if (responseData.success && Array.isArray(responseData.data)) {
+                        setProducts(responseData.data);
+                    } else if (Array.isArray(responseData)) {
+                        setProducts(responseData);
+                    } else if (responseData.data && Array.isArray(responseData.data)) {
+                        setProducts(responseData.data);
+                    } else {
+                        console.error('Unrecognized data structure:', responseData);
+                        setProducts([]);
+                    }
+                } else {
+                    console.error('No data in response');
+                    setProducts([]);
+                }
                 setLoading(false);
             } catch (error: any) {
                 console.error('Lỗi khi lấy danh sách sản phẩm:', error);
@@ -164,21 +159,6 @@ const ProductManagement = () => {
         e.preventDefault();
 
         try {
-            // Kiểm tra token
-            const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-            if (!userInfoStr) {
-                console.error('Không tìm thấy thông tin đăng nhập');
-                toast.error('Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn');
-                return;
-            }
-
-            const userInfo = JSON.parse(userInfoStr);
-            if (!userInfo.accessToken) {
-                console.error('Không tìm thấy access token');
-                toast.error('Phiên đăng nhập không hợp lệ');
-                return;
-            }
-
             // Config cho request với token
             const productData = { ...formData };
 
@@ -186,12 +166,7 @@ const ProductManagement = () => {
             if (selectedProduct) {
                 // Cập nhật sản phẩm
                 console.log('Cập nhật sản phẩm:', selectedProduct._id, productData);
-                response = await axios.put(`/api/products/${selectedProduct._id}`, productData, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${userInfo.accessToken}`,
-                    },
-                });
+                response = await productAPI.updateProduct(selectedProduct._id, productData);
 
                 // Cập nhật UI
                 setProducts(products.map(product =>
@@ -205,12 +180,7 @@ const ProductManagement = () => {
             } else {
                 // Thêm sản phẩm mới
                 console.log('Thêm sản phẩm mới:', productData);
-                response = await axios.post('/api/products', productData, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${userInfo.accessToken}`,
-                    },
-                });
+                response = await productAPI.createProduct(productData);
 
                 if (response.data && response.data.data) {
                     // Thêm sản phẩm mới vào danh sách
@@ -236,34 +206,11 @@ const ProductManagement = () => {
     // Cập nhật số lượng tồn kho
     const updateStock = async (productId: string, newStock: number) => {
         try {
-            // Kiểm tra token
-            const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-            if (!userInfoStr) {
-                console.error('Không tìm thấy thông tin đăng nhập');
-                toast.error('Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn');
-                return;
-            }
-
-            const userInfo = JSON.parse(userInfoStr);
-            if (!userInfo.accessToken) {
-                console.error('Không tìm thấy access token');
-                toast.error('Phiên đăng nhập không hợp lệ');
-                return;
-            }
-
-            // Config cho request với token
-            const config = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userInfo.accessToken}`,
-                },
-            };
-
             // Gọi API để cập nhật số lượng tồn kho
             console.log(`Cập nhật số lượng tồn kho sản phẩm ${productId} thành ${newStock}`);
-            await axios.put(`/api/products/${productId}`, {
+            await productAPI.updateProduct(productId, {
                 countInStock: newStock
-            }, config);
+            });
 
             // Cập nhật UI
             setProducts(products.map(product =>
@@ -286,32 +233,9 @@ const ProductManagement = () => {
     const deleteProduct = async (productId: string) => {
         if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
             try {
-                // Kiểm tra token
-                const userInfoStr = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-                if (!userInfoStr) {
-                    console.error('Không tìm thấy thông tin đăng nhập');
-                    toast.error('Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn');
-                    return;
-                }
-
-                const userInfo = JSON.parse(userInfoStr);
-                if (!userInfo.accessToken) {
-                    console.error('Không tìm thấy access token');
-                    toast.error('Phiên đăng nhập không hợp lệ');
-                    return;
-                }
-
-                // Config cho request với token
-                const config = {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${userInfo.accessToken}`,
-                    },
-                };
-
                 // Gọi API để xóa sản phẩm
                 console.log(`Xóa sản phẩm ${productId}`);
-                await axios.delete(`/api/products/${productId}`, config);
+                await productAPI.deleteProduct(productId);
 
                 // Cập nhật UI
                 setProducts(products.filter(product => product._id !== productId));

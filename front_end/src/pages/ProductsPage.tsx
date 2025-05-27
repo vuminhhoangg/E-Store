@@ -261,6 +261,34 @@ const ProductsPage = () => {
         }).format(price);
     };
 
+    // Get top 8 products with highest stock from each category
+    const getBestSellingProducts = () => {
+        const categoryGroups: { [key: string]: Product[] } = {};
+
+        // Group products by category
+        products.forEach(product => {
+            if (!categoryGroups[product.category]) {
+                categoryGroups[product.category] = [];
+            }
+            categoryGroups[product.category].push(product);
+        });
+
+        // Get exactly top 8 products with highest stock from each category
+        const bestSellingIds = new Set<string>();
+        Object.entries(categoryGroups).forEach(([category, categoryProducts]) => {
+            const sortedByStock = categoryProducts
+                .filter(p => p.countInStock > 0)
+                .sort((a, b) => b.countInStock - a.countInStock)
+                .slice(0, 8); // Exactly 8 products with highest stock from each category
+
+            sortedByStock.forEach(product => bestSellingIds.add(product._id));
+        });
+
+        return Array.from(bestSellingIds);
+    };
+
+    const bestSellingProductIds = getBestSellingProducts();
+
     // Filter products
     const filteredProducts = products.filter((product) => {
         const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
@@ -638,7 +666,7 @@ const ProductsPage = () => {
                                             </div>
                                         )}
                                         <div className="absolute top-2 left-2 flex flex-col gap-2">
-                                            {product.countInStock > 0 && (
+                                            {bestSellingProductIds.includes(product._id) && product.countInStock > 0 && (
                                                 <span className="badge-hot py-1 px-2 rounded-full shadow-md text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
                                                     Bán chạy
                                                 </span>

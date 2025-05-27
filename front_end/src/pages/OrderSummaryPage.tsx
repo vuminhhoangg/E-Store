@@ -335,7 +335,7 @@ const OrderSummaryPage = () => {
                                         </p>
                                         <p className="flex justify-between">
                                             <span className="text-gray-600">Địa chỉ:</span>
-                                            <span className="font-medium text-right">{shippingInfo.address}, {shippingInfo.ward}, {shippingInfo.district}, {shippingInfo.city}</span>
+                                            <span className="font-medium text-right">{shippingInfo.address}</span>
                                         </p>
                                     </div>
                                 )}
